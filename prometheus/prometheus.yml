@@ -10,3 +10,9 @@ scrape_configs:
     static_configs:
       - targets:
           - app:8080
+
+  - job_name: postgres
+
+    static_configs:
+      - targets:
+          - postgres-exporter:9187
