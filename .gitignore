@@ -1,0 +1,38 @@
+```gitignore
+# Maven
+target/
+**/target/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+pgdata/
+grafana-data/
+prometheus-data/
+
+# Temporary files
+*.tmp
+*.swp
+
+# Environment
+.env
+
+# JMeter results
+*.jtl
+*.csv
+
+# Heap dumps
+*.hprof
+```

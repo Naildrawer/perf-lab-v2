@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  app:
+    build:
+      context: ./app
+
+    container_name: spring-app
+
+    depends_on:
+      - postgres
+
+    ports:
+      - "8080:8080"
+
+    restart: unless-stopped
