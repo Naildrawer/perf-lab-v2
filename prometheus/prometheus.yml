@@ -10,6 +10,7 @@ scrape_configs:
     static_configs:
       - targets:
           - app:8080
+          - app2:8080
 
   - job_name: postgres
 

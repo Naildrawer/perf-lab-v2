@@ -67,15 +67,29 @@ services:
     build:
       context: ./app
 
+    hostname: app
+
     container_name: spring-app
 
     depends_on:
       - postgres
       - redis
-    ports:
-      - "8080:8080"
 
     restart: unless-stopped
+
+  app2:
+    build:
+      context: ./app
+
+    hostname: app2
+
+    container_name: spring-app-2
+
+    depends_on:
+      - postgres
+      - redis
+
+    restart: unless-stopped  
 
   nginx:
     image: nginx:latest
