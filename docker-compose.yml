@@ -34,6 +34,35 @@ services:
     depends_on:
       - postgres
 
+  redis:
+    image: redis:7
+
+    container_name: redis
+
+    restart: unless-stopped
+
+    ports:
+      - "6379:6379"
+
+    volumes:
+      - redis-data:/data
+
+  redis-exporter:
+    image: oliver006/redis_exporter
+
+    container_name: redis-exporter
+
+    restart: unless-stopped
+
+    environment:
+      REDIS_ADDR: redis://redis:6379
+
+    ports:
+      - "9121:9121"
+
+    depends_on:
+      - redis
+
   app:
     build:
       context: ./app
@@ -42,7 +71,7 @@ services:
 
     depends_on:
       - postgres
-
+      - redis
     ports:
       - "8080:8080"
 
@@ -84,3 +113,4 @@ volumes:
   pgdata:
   prometheus-data:
   grafana-data:
+  redis-data:
