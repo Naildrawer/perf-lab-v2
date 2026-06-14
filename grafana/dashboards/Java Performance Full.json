@@ -4,10 +4,22 @@
   "metadata": {
     "name": "java-performance-full",
     "namespace": "default",
-    "uid": "a2b0b3a2-cafa-41a3-a838-dadff029a5c6",
-    "labels": {},
+    "uid": "53f769e5-25a0-483a-a56b-162323d888d8",
+    "resourceVersion": "1781394987320003",
+    "generation": 2,
+    "creationTimestamp": "2026-06-13T23:53:36Z",
+    "labels": {
+      "grafana.app/deprecatedInternalID": "3297083706261504"
+    },
     "annotations": {
+      "grafana.app/createdBy": "access-policy:service",
       "grafana.app/managedBy": "classic-file-provisioning",
+      "grafana.app/managerId": "default",
+      "grafana.app/sourceChecksum": "fd2a68309a717a15607e5e7119aca7ed",
+      "grafana.app/sourcePath": "/var/lib/grafana/dashboards/java-performance-full.json",
+      "grafana.app/sourceTimestamp": "1781394983000",
+      "grafana.app/updatedBy": "access-policy:service",
+      "grafana.app/updatedTimestamp": "2026-06-13T23:56:27Z",
       "grafana.app/folder": ""
     }
   },
@@ -5337,14 +5349,81 @@
           "links": [],
           "title": "Database Keys",
           "vizConfig": {
-            "group": "__unconfigured-panel",
+            "group": "timeseries",
             "kind": "VizConfig",
             "spec": {
               "fieldConfig": {
-                "defaults": {},
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
                 "overrides": []
               },
-              "options": {}
+              "options": {
+                "annotations": {
+                  "clustering": -1,
+                  "multiLane": false
+                },
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              }
             },
             "version": "13.0.2"
           }
@@ -5549,6 +5628,8 @@
                       "mode": "off"
                     }
                   },
+                  "max": 100,
+                  "min": 0,
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -5562,9 +5643,7 @@
                       }
                     ]
                   },
-                  "unit": "percent",
-                  "min": 0,
-                  "max": 100
+                  "unit": "percent"
                 },
                 "overrides": []
               },
@@ -5993,6 +6072,8 @@
                   "color": {
                     "mode": "palette-classic"
                   },
+                  "max": 100,
+                  "min": 0,
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -6006,9 +6087,7 @@
                       }
                     ]
                   },
-                  "unit": "percent",
-                  "min": 0,
-                  "max": 100
+                  "unit": "percent"
                 },
                 "overrides": []
               },
@@ -6080,6 +6159,8 @@
                   "color": {
                     "mode": "palette-classic"
                   },
+                  "max": 100,
+                  "min": 0,
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -6093,9 +6174,7 @@
                       }
                     ]
                   },
-                  "unit": "percent",
-                  "min": 0,
-                  "max": 100
+                  "unit": "percent"
                 },
                 "overrides": []
               },
@@ -6286,6 +6365,8 @@
                   "color": {
                     "mode": "palette-classic"
                   },
+                  "max": 100,
+                  "min": 0,
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -6299,9 +6380,7 @@
                       }
                     ]
                   },
-                  "unit": "percent",
-                  "min": 0,
-                  "max": 100
+                  "unit": "percent"
                 },
                 "overrides": []
               },
@@ -6795,7 +6874,7 @@
           {
             "kind": "RowsLayoutRow",
             "spec": {
-              "collapse": true,
+              "collapse": false,
               "layout": {
                 "kind": "AutoGridLayout",
                 "spec": {
