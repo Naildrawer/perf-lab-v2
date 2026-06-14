@@ -36,3 +36,5 @@ prometheus-data/
 # Heap dumps
 *.hprof
 ```
+#Images
+*.tar
