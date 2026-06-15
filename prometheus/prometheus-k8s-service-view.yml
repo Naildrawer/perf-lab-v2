@@ -52,11 +52,14 @@ scrape_configs:
       - targets:
           - node-exporter:9100
 
+  # Optional standalone cAdvisor target. Kept for debugging/raw cAdvisor.
   - job_name: cadvisor
     static_configs:
       - targets:
           - cadvisor:8080
 
+  # Kubernetes-native cAdvisor scrape from kubelet via Kubernetes API proxy.
+  # This is the job used by service-level container CPU/Memory/Network panels.
   - job_name: kubelet-cadvisor
     scheme: https
     metrics_path: /metrics/cadvisor

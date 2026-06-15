@@ -2,24 +2,22 @@
   "apiVersion": "dashboard.grafana.app/v2",
   "kind": "Dashboard",
   "metadata": {
-    "name": "java-performance-full",
+    "name": "java-perf-docker-v2",
     "namespace": "default",
-    "uid": "53f769e5-25a0-483a-a56b-162323d888d8",
-    "resourceVersion": "1781394987320003",
-    "generation": 2,
-    "creationTimestamp": "2026-06-13T23:53:36Z",
+    "uid": "605a9009-f161-4d4f-93f5-3d56f26da50c",
+    "resourceVersion": "1781554774550995",
+    "generation": 1,
+    "creationTimestamp": "2026-06-15T20:19:34Z",
     "labels": {
-      "grafana.app/deprecatedInternalID": "3297083706261504"
+      "grafana.app/deprecatedInternalID": "3967998229213184"
     },
     "annotations": {
       "grafana.app/createdBy": "access-policy:service",
       "grafana.app/managedBy": "classic-file-provisioning",
       "grafana.app/managerId": "default",
-      "grafana.app/sourceChecksum": "fd2a68309a717a15607e5e7119aca7ed",
-      "grafana.app/sourcePath": "/var/lib/grafana/dashboards/java-performance-full.json",
-      "grafana.app/sourceTimestamp": "1781394983000",
-      "grafana.app/updatedBy": "access-policy:service",
-      "grafana.app/updatedTimestamp": "2026-06-13T23:56:27Z",
+      "grafana.app/sourceChecksum": "392a67bd21211fde479f258710c83ed4",
+      "grafana.app/sourcePath": "/var/lib/grafana/dashboards/java-performance-docker-compose-fixed.json",
+      "grafana.app/sourceTimestamp": "1781553764000",
       "grafana.app/folder": ""
     }
   },
@@ -46,6 +44,7 @@
       }
     ],
     "cursorSync": "Off",
+    "description": "Docker Compose",
     "editable": true,
     "elements": {
       "panel-12": {
@@ -61,13 +60,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(instance) (rate(http_server_requests_seconds_count[1m]))",
+                        "expr": "sum by(instance) (rate(http_server_requests_seconds_count{job=\"spring\",instance=~\"app:8080|app2:8080\"}[1m]))",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -180,13 +179,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(instance) (rate(http_server_requests_seconds_count{status=~\"4..\"}[1m]))",
+                        "expr": "sum by(instance) (rate(http_server_requests_seconds_count{job=\"spring\",instance=~\"app:8080|app2:8080\",status=~\"4..\"}[1m]))",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -299,13 +298,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "hikaricp_connections_active",
+                        "expr": "hikaricp_connections_active{job=\"spring\",instance=~\"app:8080|app2:8080\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -418,13 +417,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"heap\"})",
+                        "expr": "sum by(instance) (jvm_memory_used_bytes{job=\"spring\",instance=~\"app:8080|app2:8080\",area=\"heap\"})",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -537,13 +536,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "hikaricp_connections_max",
+                        "expr": "hikaricp_connections_max{job=\"spring\",instance=~\"app:8080|app2:8080\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -622,13 +621,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "process_cpu_usage * 100",
+                        "expr": "process_cpu_usage{job=\"spring\",instance=~\"app:8080|app2:8080\"} * 100",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -709,13 +708,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "process_memory_virtual_bytes",
+                        "expr": "process_memory_virtual_bytes{job=\"spring\",instance=~\"app:8080|app2:8080\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -828,13 +827,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "up{job=\"spring\"}",
+                        "expr": "up{job=\"spring\",instance=~\"app:8080|app2:8080\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -913,13 +912,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "100 * sum by(instance) (jvm_memory_used_bytes{area=\"heap\"}) / sum by(instance) (jvm_memory_max_bytes{area=\"heap\"})",
+                        "expr": "100 * sum by(instance) (jvm_memory_used_bytes{job=\"spring\",instance=~\"app:8080|app2:8080\",area=\"heap\"}) / sum by(instance) (jvm_memory_max_bytes{job=\"spring\",instance=~\"app:8080|app2:8080\",area=\"heap\"})",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -1000,13 +999,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(instance) (jvm_memory_max_bytes{area=\"heap\"})",
+                        "expr": "sum by(instance) (jvm_memory_max_bytes{job=\"spring\",instance=~\"app:8080|app2:8080\",area=\"heap\"})",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -1085,13 +1084,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "jvm_threads_live_threads",
+                        "expr": "jvm_threads_live_threads{job=\"spring\",instance=~\"app:8080|app2:8080\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -1170,13 +1169,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "jvm_threads_peak_threads",
+                        "expr": "jvm_threads_peak_threads{job=\"spring\",instance=~\"app:8080|app2:8080\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -1255,13 +1254,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(instance) (rate(jvm_gc_pause_seconds_sum[1m]))",
+                        "expr": "sum by(instance) (rate(jvm_gc_pause_seconds_sum{job=\"spring\",instance=~\"app:8080|app2:8080\"}[1m]))",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -1374,13 +1373,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "process_uptime_seconds",
+                        "expr": "process_uptime_seconds{job=\"spring\",instance=~\"app:8080|app2:8080\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -1459,13 +1458,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(instance) (rate(http_server_requests_seconds_sum[1m])) / sum by(instance) (rate(http_server_requests_seconds_count[1m]))",
+                        "expr": "sum by(instance) (rate(http_server_requests_seconds_sum{job=\"spring\",instance=~\"app:8080|app2:8080\"}[1m])) / sum by(instance) (rate(http_server_requests_seconds_count{job=\"spring\",instance=~\"app:8080|app2:8080\"}[1m]))",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -1578,13 +1577,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(instance) (http_server_requests_seconds_count)",
+                        "expr": "sum by(instance) (http_server_requests_seconds_count{job=\"spring\",instance=~\"app:8080|app2:8080\"})",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -1663,13 +1662,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(instance) (rate(http_server_requests_seconds_count{status=~\"5..\"}[1m]))",
+                        "expr": "sum by(instance) (rate(http_server_requests_seconds_count{job=\"spring\",instance=~\"app:8080|app2:8080\",status=~\"5..\"}[1m]))",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -1782,13 +1781,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(instance) (rate(http_server_requests_seconds_count{outcome=\"SUCCESS\"}[1m]))",
+                        "expr": "sum by(instance) (rate(http_server_requests_seconds_count{job=\"spring\",instance=~\"app:8080|app2:8080\",outcome=\"SUCCESS\"}[1m]))",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -1901,13 +1900,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "hikaricp_connections_idle",
+                        "expr": "hikaricp_connections_idle{job=\"spring\",instance=~\"app:8080|app2:8080\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -2020,13 +2019,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "hikaricp_connections_pending",
+                        "expr": "hikaricp_connections_pending{job=\"spring\",instance=~\"app:8080|app2:8080\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -2139,13 +2138,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"nonheap\"})",
+                        "expr": "sum by(instance) (jvm_memory_used_bytes{job=\"spring\",instance=~\"app:8080|app2:8080\",area=\"nonheap\"})",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -2258,13 +2257,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "hikaricp_connections_min",
+                        "expr": "hikaricp_connections_min{job=\"spring\",instance=~\"app:8080|app2:8080\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -2343,13 +2342,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(instance) (rate(hikaricp_connections_timeout_total[1m]))",
+                        "expr": "sum by(instance) (rate(hikaricp_connections_timeout_total{job=\"spring\",instance=~\"app:8080|app2:8080\"}[1m]))",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -2462,13 +2461,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "system_cpu_usage * 100",
+                        "expr": "system_cpu_usage{job=\"spring\",instance=~\"app:8080|app2:8080\"} * 100",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -2549,13 +2548,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "process_resident_memory_bytes",
+                        "expr": "process_resident_memory_bytes{job=\"spring\",instance=~\"app:8080|app2:8080\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -2668,13 +2667,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "process_files_open_files",
+                        "expr": "process_files_open_files{job=\"spring\",instance=~\"app:8080|app2:8080\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -2787,13 +2786,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "process_files_max_files",
+                        "expr": "process_files_max_files{job=\"spring\",instance=~\"app:8080|app2:8080\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -2872,13 +2871,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "scrape_duration_seconds{job=\"spring\"}",
+                        "expr": "scrape_duration_seconds{job=\"spring\",instance=~\"app:8080|app2:8080\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -2991,13 +2990,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "scrape_samples_scraped{job=\"spring\"}",
+                        "expr": "scrape_samples_scraped{job=\"spring\",instance=~\"app:8080|app2:8080\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -3110,14 +3109,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "pg_up",
-                        "legendFormat": "__auto",
+                        "expr": "pg_up{job=\"postgres\"}",
+                        "legendFormat": "{{instance}}",
                         "range": true
                       },
                       "version": "v0"
@@ -3194,14 +3193,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(pg_stat_database_xact_commit[1m])\r\n+\r\nrate(pg_stat_database_xact_rollback[1m])",
-                        "legendFormat": "__auto",
+                        "expr": "rate(pg_stat_database_xact_commit{job=\"postgres\",datname=\"app\"}[1m]) + rate(pg_stat_database_xact_rollback{job=\"postgres\",datname=\"app\"}[1m])",
+                        "legendFormat": "app",
                         "range": true
                       },
                       "version": "v0"
@@ -3313,14 +3312,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(pg_stat_database_xact_commit[1m])",
-                        "legendFormat": "__auto",
+                        "expr": "rate(pg_stat_database_xact_commit{job=\"postgres\",datname=\"app\"}[1m])",
+                        "legendFormat": "app",
                         "range": true
                       },
                       "version": "v0"
@@ -3431,14 +3430,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(pg_stat_database_xact_rollback[1m])",
-                        "legendFormat": "__auto",
+                        "expr": "rate(pg_stat_database_xact_rollback{job=\"postgres\",datname=\"app\"}[1m])",
+                        "legendFormat": "app",
                         "range": true
                       },
                       "version": "v0"
@@ -3549,14 +3548,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(pg_stat_database_blks_read[1m])",
-                        "legendFormat": "__auto",
+                        "expr": "rate(pg_stat_database_blks_read{job=\"postgres\",datname=\"app\"}[1m])",
+                        "legendFormat": "app",
                         "range": true
                       },
                       "version": "v0"
@@ -3667,14 +3666,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(pg_stat_database_blks_hit[1m])",
-                        "legendFormat": "__auto",
+                        "expr": "rate(pg_stat_database_blks_hit{job=\"postgres\",datname=\"app\"}[1m])",
+                        "legendFormat": "app",
                         "range": true
                       },
                       "version": "v0"
@@ -3785,14 +3784,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "100 *\r\nrate(pg_stat_database_blks_hit[1m])\r\n/\r\n(\r\nrate(pg_stat_database_blks_hit[1m])\r\n+\r\nrate(pg_stat_database_blks_read[1m])\r\n)",
-                        "legendFormat": "__auto",
+                        "expr": "100 * rate(pg_stat_database_blks_hit{job=\"postgres\",datname=\"app\"}[1m]) / clamp_min(rate(pg_stat_database_blks_hit{job=\"postgres\",datname=\"app\"}[1m]) + rate(pg_stat_database_blks_read{job=\"postgres\",datname=\"app\"}[1m]), 1)",
+                        "legendFormat": "app",
                         "range": true
                       },
                       "version": "v0"
@@ -3870,14 +3869,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(pg_stat_database_deadlocks[1m])",
-                        "legendFormat": "__auto",
+                        "expr": "rate(pg_stat_database_deadlocks{job=\"postgres\",datname=\"app\"}[1m])",
+                        "legendFormat": "app",
                         "range": true
                       },
                       "version": "v0"
@@ -3988,14 +3987,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(pg_stat_database_temp_files[1m])",
-                        "legendFormat": "__auto",
+                        "expr": "rate(pg_stat_database_temp_files{job=\"postgres\",datname=\"app\"}[1m])",
+                        "legendFormat": "app",
                         "range": true
                       },
                       "version": "v0"
@@ -4106,14 +4105,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(pg_stat_database_temp_bytes[1m])",
-                        "legendFormat": "__auto",
+                        "expr": "rate(pg_stat_database_temp_bytes{job=\"postgres\",datname=\"app\"}[1m])",
+                        "legendFormat": "app",
                         "range": true
                       },
                       "version": "v0"
@@ -4224,14 +4223,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "redis_connected_clients",
-                        "legendFormat": "__auto",
+                        "expr": "redis_connected_clients{job=\"redis\"}",
+                        "legendFormat": "{{instance}}",
                         "range": true
                       },
                       "version": "v0"
@@ -4308,14 +4307,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "redis_memory_used_bytes",
-                        "legendFormat": "__auto",
+                        "expr": "redis_memory_used_bytes{job=\"redis\"}",
+                        "legendFormat": "{{instance}}",
                         "range": true
                       },
                       "version": "v0"
@@ -4393,14 +4392,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "redis_uptime_in_seconds",
-                        "legendFormat": "__auto",
+                        "expr": "redis_uptime_in_seconds{job=\"redis\"}",
+                        "legendFormat": "{{instance}}",
                         "range": true
                       },
                       "version": "v0"
@@ -4478,14 +4477,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(redis_keyspace_hits_total[1m])",
-                        "legendFormat": "__auto",
+                        "expr": "rate(redis_keyspace_hits_total{job=\"redis\"}[1m])",
+                        "legendFormat": "{{instance}}",
                         "range": true
                       },
                       "version": "v0"
@@ -4597,14 +4596,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(redis_keyspace_misses_total[1m])",
-                        "legendFormat": "__auto",
+                        "expr": "rate(redis_keyspace_misses_total{job=\"redis\"}[1m])",
+                        "legendFormat": "{{instance}}",
                         "range": true
                       },
                       "version": "v0"
@@ -4716,14 +4715,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "100 * rate(redis_keyspace_hits_total[1m]) / clamp_min(rate(redis_keyspace_hits_total[1m]) + rate(redis_keyspace_misses_total[1m]), 1)",
-                        "legendFormat": "__auto",
+                        "expr": "100 * rate(redis_keyspace_hits_total{job=\"redis\"}[1m]) / clamp_min(rate(redis_keyspace_hits_total{job=\"redis\"}[1m]) + rate(redis_keyspace_misses_total{job=\"redis\"}[1m]), 1)",
+                        "legendFormat": "{{instance}}",
                         "range": true
                       },
                       "version": "v0"
@@ -4835,14 +4834,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(redis_net_input_bytes_total[1m])",
-                        "legendFormat": "__auto",
+                        "expr": "rate(redis_net_input_bytes_total{job=\"redis\"}[1m])",
+                        "legendFormat": "{{instance}}",
                         "range": true
                       },
                       "version": "v0"
@@ -4954,14 +4953,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(redis_net_output_bytes_total[1m])",
-                        "legendFormat": "__auto",
+                        "expr": "rate(redis_net_output_bytes_total{job=\"redis\"}[1m])",
+                        "legendFormat": "{{instance}}",
                         "range": true
                       },
                       "version": "v0"
@@ -5072,14 +5071,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "redis_commands_processed_total",
-                        "legendFormat": "__auto",
+                        "expr": "rate(redis_commands_processed_total{job=\"redis\"}[1m])",
+                        "legendFormat": "{{instance}}",
                         "range": true
                       },
                       "version": "v0"
@@ -5156,14 +5155,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "redis_expired_keys_total",
-                        "legendFormat": "__auto",
+                        "expr": "rate(redis_expired_keys_total{job=\"redis\"}[1m])",
+                        "legendFormat": "{{instance}}",
                         "range": true
                       },
                       "version": "v0"
@@ -5240,14 +5239,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "redis_evicted_keys_total",
-                        "legendFormat": "__auto",
+                        "expr": "rate(redis_evicted_keys_total{job=\"redis\"}[1m])",
+                        "legendFormat": "{{instance}}",
                         "range": true
                       },
                       "version": "v0"
@@ -5324,14 +5323,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "redis_db_keys or redis_keyspace_keys",
-                        "legendFormat": "__auto",
+                        "expr": "redis_db_keys{job=\"redis\"} or redis_keyspace_keys{job=\"redis\"}",
+                        "legendFormat": "{{instance}}",
                         "range": true
                       },
                       "version": "v0"
@@ -5442,13 +5441,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(instance) (rate(jvm_gc_pause_seconds_count[1m]))",
+                        "expr": "sum by(instance) (rate(jvm_gc_pause_seconds_count{job=\"spring\",instance=~\"app:8080|app2:8080\"}[1m]))",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -5561,14 +5560,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service!=\"\"}[1m])) * 100",
-                        "legendFormat": "{{container_label_com_docker_compose_service}}",
+                        "expr": "sum by(name) (rate(container_cpu_usage_seconds_total{job=\"cadvisor\",name!=\"\",image!=\"\"}[1m])) * 100",
+                        "legendFormat": "{{name}}",
                         "range": true
                       },
                       "version": "v0"
@@ -5584,7 +5583,7 @@
           "description": "",
           "id": 80,
           "links": [],
-          "title": "Container CPU by Service",
+          "title": "Container CPU by Docker Container",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -5682,14 +5681,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(container_label_com_docker_compose_service) (container_memory_usage_bytes{container_label_com_docker_compose_service!=\"\"})",
-                        "legendFormat": "{{container_label_com_docker_compose_service}}",
+                        "expr": "sum by(name) (container_memory_working_set_bytes{job=\"cadvisor\",name!=\"\",image!=\"\"})",
+                        "legendFormat": "{{name}}",
                         "range": true
                       },
                       "version": "v0"
@@ -5705,7 +5704,7 @@
           "description": "",
           "id": 81,
           "links": [],
-          "title": "Container Memory by Service",
+          "title": "Container Memory by Docker Container",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -5801,14 +5800,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(container_label_com_docker_compose_service) (rate(container_network_receive_bytes_total{container_label_com_docker_compose_service!=\"\"}[1m]))",
-                        "legendFormat": "{{container_label_com_docker_compose_service}}",
+                        "expr": "sum by(name) (rate(container_network_receive_bytes_total{job=\"cadvisor\",name!=\"\",image!=\"\"}[1m]))",
+                        "legendFormat": "{{name}}",
                         "range": true
                       },
                       "version": "v0"
@@ -5824,7 +5823,7 @@
           "description": "",
           "id": 82,
           "links": [],
-          "title": "Container Network RX",
+          "title": "Container Network RX by Docker Container",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -5920,14 +5919,14 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by(container_label_com_docker_compose_service) (rate(container_network_transmit_bytes_total{container_label_com_docker_compose_service!=\"\"}[1m]))",
-                        "legendFormat": "{{container_label_com_docker_compose_service}}",
+                        "expr": "sum by(name) (rate(container_network_transmit_bytes_total{job=\"cadvisor\",name!=\"\",image!=\"\"}[1m]))",
+                        "legendFormat": "{{name}}",
                         "range": true
                       },
                       "version": "v0"
@@ -5943,7 +5942,7 @@
           "description": "",
           "id": 83,
           "links": [],
-          "title": "Container Network TX",
+          "title": "Container Network TX by Docker Container",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -6039,13 +6038,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[1m])) * 100)",
+                        "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{job=\"node\",mode=\"idle\"}[1m])) * 100)",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -6126,13 +6125,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))",
+                        "expr": "100 * (1 - (node_memory_MemAvailable_bytes{job=\"node\"} / node_memory_MemTotal_bytes{job=\"node\"}))",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -6213,13 +6212,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "node_load1",
+                        "expr": "node_load1{job=\"node\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -6332,13 +6331,13 @@
                     "hidden": false,
                     "query": {
                       "datasource": {
-                        "name": "prometheus"
+                        "name": "Prometheus"
                       },
                       "group": "prometheus",
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "100 * node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"}",
+                        "expr": "100 * node_filesystem_avail_bytes{job=\"node\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{job=\"node\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"}",
                         "legendFormat": "{{instance}}",
                         "range": true
                       },
@@ -7263,7 +7262,7 @@
                   ]
                 }
               },
-              "title": "Docker / Host"
+              "title": "Docker Containers / Host"
             }
           }
         ]
@@ -7301,7 +7300,7 @@
       "timezone": "browser",
       "to": "now"
     },
-    "title": "Java Performance Full",
+    "title": "Java Performance Docker Compose",
     "variables": []
   }
 }

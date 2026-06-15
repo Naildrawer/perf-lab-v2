@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: DaemonSet
+
+metadata:
+  name: node-exporter
+  namespace: perf-lab
+
+spec:
+  selector:
+    matchLabels:
+      app: node-exporter
+
+  template:
+    metadata:
+      labels:
+        app: node-exporter
+
+    spec:
+      hostNetwork: true
+      hostPID: true
+
+      containers:
+        - name: node-exporter
+
+          image: prom/node-exporter:latest
+
+          args:
+            - --path.rootfs=/host
+            - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/containerd/.+)($|/)
+            - --collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$
+
+          ports:
+            - containerPort: 9100
+              hostPort: 9100
+
+          volumeMounts:
+            - name: root
+              mountPath: /host
+              readOnly: true
+
+      volumes:
+        - name: root
+          hostPath:
+            path: /
+
+---
+
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: node-exporter
+  namespace: perf-lab
+
+spec:
+  selector:
+    app: node-exporter
+
+  ports:
+    - port: 9100
+      targetPort: 9100
+
+  type: ClusterIP

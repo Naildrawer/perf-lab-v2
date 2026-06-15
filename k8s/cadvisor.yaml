@@ -1,0 +1,172 @@
+apiVersion: apps/v1
+kind: DaemonSet
+
+metadata:
+  name: cadvisor
+  namespace: perf-lab
+
+spec:
+  selector:
+    matchLabels:
+      app: cadvisor
+
+  template:
+    metadata:
+      labels:
+        app: cadvisor
+
+    spec:
+      hostNetwork: true
+      hostPID: true
+      terminationGracePeriodSeconds: 30
+
+      containers:
+        - name: cadvisor
+          image: gcr.io/cadvisor/cadvisor:latest
+
+          securityContext:
+            privileged: true
+            runAsUser: 0
+
+          ports:
+            - name: http
+              containerPort: 8080
+              hostPort: 8080
+
+          args:
+            - --housekeeping_interval=10s
+            - --max_housekeeping_interval=15s
+            - --docker_only=false
+            - --store_container_labels=true
+            - --event_storage_event_limit=default=0
+            - --event_storage_age_limit=default=0
+
+          volumeMounts:
+            - name: rootfs
+              mountPath: /rootfs
+              readOnly: true
+              mountPropagation: HostToContainer
+
+            - name: var-run
+              mountPath: /var/run
+
+            - name: run-containerd
+              mountPath: /run/containerd
+              readOnly: true
+
+            - name: sys
+              mountPath: /sys
+              readOnly: true
+
+            - name: cgroup
+              mountPath: /sys/fs/cgroup
+              readOnly: true
+
+            - name: docker
+              mountPath: /var/lib/docker
+              readOnly: true
+
+            - name: containerd
+              mountPath: /var/lib/containerd
+              readOnly: true
+
+            - name: k3s-containerd
+              mountPath: /var/lib/rancher/k3s/agent/containerd
+              readOnly: true
+
+            - name: kubelet
+              mountPath: /var/lib/kubelet
+              readOnly: true
+
+            - name: rancher
+              mountPath: /var/lib/rancher
+              readOnly: true
+
+            - name: disk
+              mountPath: /dev/disk
+              readOnly: true
+
+            - name: machine-id
+              mountPath: /etc/machine-id
+              readOnly: true
+
+      volumes:
+        - name: rootfs
+          hostPath:
+            path: /
+            type: Directory
+
+        - name: var-run
+          hostPath:
+            path: /var/run
+            type: Directory
+
+        - name: run-containerd
+          hostPath:
+            path: /run/containerd
+            type: DirectoryOrCreate
+
+        - name: sys
+          hostPath:
+            path: /sys
+            type: Directory
+
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+            type: Directory
+
+        - name: docker
+          hostPath:
+            path: /var/lib/docker
+            type: DirectoryOrCreate
+
+        - name: containerd
+          hostPath:
+            path: /var/lib/containerd
+            type: DirectoryOrCreate
+
+        - name: k3s-containerd
+          hostPath:
+            path: /var/lib/rancher/k3s/agent/containerd
+            type: DirectoryOrCreate
+
+        - name: kubelet
+          hostPath:
+            path: /var/lib/kubelet
+            type: DirectoryOrCreate
+
+        - name: rancher
+          hostPath:
+            path: /var/lib/rancher
+            type: Directory
+
+        - name: disk
+          hostPath:
+            path: /dev/disk
+            type: DirectoryOrCreate
+
+        - name: machine-id
+          hostPath:
+            path: /etc/machine-id
+            type: FileOrCreate
+
+---
+
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: cadvisor
+  namespace: perf-lab
+
+spec:
+  type: ClusterIP
+
+  selector:
+    app: cadvisor
+
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
