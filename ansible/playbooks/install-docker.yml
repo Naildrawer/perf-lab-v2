@@ -1,0 +1,25 @@
+---
+- name: Install Docker
+  hosts: local
+  gather_facts: false
+
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.command: sudo -n apt update
+      changed_when: true
+
+    - name: Install Docker packages
+      ansible.builtin.command: sudo -n apt install -y docker.io docker-compose-plugin curl ca-certificates
+      changed_when: true
+
+    - name: Enable Docker service
+      ansible.builtin.command: sudo -n systemctl enable --now docker
+      changed_when: true
+
+    - name: Check Docker version
+      ansible.builtin.command: docker --version
+      changed_when: false
+
+    - name: Check Docker Compose version
+      ansible.builtin.command: docker compose version
+      changed_when: false

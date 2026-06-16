@@ -1,0 +1,21 @@
+---
+- name: Stop Kubernetes mode
+  hosts: local
+  gather_facts: false
+
+  tasks:
+    - name: Stop k3s service
+      ansible.builtin.command: sudo -n systemctl stop k3s
+      failed_when: false
+      changed_when: false
+
+    - name: Kill k3s leftovers
+      ansible.builtin.command: sudo -n /usr/local/bin/k3s-killall.sh
+      failed_when: false
+      changed_when: false
+
+    - name: Check Kubernetes API is stopped
+      ansible.builtin.command: kubectl get nodes
+      register: kubectl_nodes
+      failed_when: kubectl_nodes.rc == 0
+      changed_when: false

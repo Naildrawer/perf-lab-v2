@@ -1,0 +1,56 @@
+---
+- name: Start Docker Compose mode
+  hosts: local
+  gather_facts: false
+
+  vars:
+    project_dir: "{{ playbook_dir }}/../.."
+
+  tasks:
+    - name: Stop k3s service
+      ansible.builtin.command: sudo -n systemctl stop k3s
+      failed_when: false
+      changed_when: false
+
+    - name: Kill k3s leftovers
+      ansible.builtin.command: sudo -n /usr/local/bin/k3s-killall.sh
+      failed_when: false
+      changed_when: false
+
+    - name: Start Docker Compose
+      ansible.builtin.command:
+        cmd: docker compose up -d --build
+        chdir: "{{ project_dir }}"
+      changed_when: true
+
+    - name: Check Docker containers
+      ansible.builtin.command:
+        cmd: docker ps
+      changed_when: false
+
+    - name: Wait for Docker application endpoint
+      ansible.builtin.command:
+        cmd: curl -s -o /tmp/docker_app_check.out -w "%{http_code}" http://localhost/users
+      register: docker_app_check
+      retries: 20
+      delay: 3
+      until: docker_app_check.stdout == "200"
+      changed_when: false
+
+    - name: Wait for Docker Prometheus
+      ansible.builtin.command:
+        cmd: curl -s -o /tmp/docker_prometheus_check.out -w "%{http_code}" http://localhost:9090/-/ready
+      register: docker_prometheus_check
+      retries: 20
+      delay: 3
+      until: docker_prometheus_check.stdout == "200"
+      changed_when: false
+
+    - name: Check Docker Grafana
+      ansible.builtin.command:
+        cmd: curl -s -o /tmp/docker_grafana_check.out -w "%{http_code}" http://localhost:3000
+      register: docker_grafana_check
+      retries: 20
+      delay: 3
+      until: docker_grafana_check.stdout in ["200", "302"]
+      changed_when: false

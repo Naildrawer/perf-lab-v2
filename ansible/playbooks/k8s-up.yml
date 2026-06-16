@@ -1,0 +1,157 @@
+---
+- name: Start Kubernetes mode
+  hosts: local
+  gather_facts: false
+
+  vars:
+    project_dir: "{{ playbook_dir }}/../.."
+
+  tasks:
+    - name: Stop Docker Compose
+      ansible.builtin.command:
+        cmd: docker compose down --remove-orphans
+        chdir: "{{ project_dir }}"
+      failed_when: false
+      changed_when: false
+
+    - name: Start k3s
+      ansible.builtin.command: sudo -n systemctl start k3s
+      changed_when: true
+
+    - name: Wait for Kubernetes API
+      ansible.builtin.command: kubectl get nodes
+      register: kubectl_nodes
+      retries: 30
+      delay: 3
+      until: kubectl_nodes.rc == 0
+      changed_when: false
+
+    - name: Apply Kubernetes manifests
+      ansible.builtin.shell:
+        cmd: |
+          set -e
+
+          kubectl apply -f k8s/namespace.yaml
+
+          kubectl apply -f k8s/postgres.yaml
+          kubectl apply -f k8s/redis.yaml
+          kubectl apply -f k8s/app.yaml
+
+          kubectl apply -f k8s/postgres-exporter.yaml
+          kubectl apply -f k8s/redis-exporter.yaml
+          kubectl apply -f k8s/node-exporter.yaml
+          kubectl apply -f k8s/cadvisor.yaml
+
+          kubectl apply -f k8s/prometheus-rbac-service-view.yaml
+
+          kubectl create configmap prometheus-config -n perf-lab \
+            --from-file=prometheus.yml=prometheus/prometheus-k8s.yml \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl apply -f k8s/prometheus.yaml
+
+          kubectl wait \
+            --for=jsonpath='{.status.phase}'=Bound \
+            pvc/prometheus-pvc \
+            -n perf-lab \
+            --timeout=120s
+
+          kubectl apply -f k8s/grafana.yaml
+          kubectl apply -f k8s/ingress.yaml
+        chdir: "{{ project_dir }}"
+      changed_when: true
+
+    - name: Wait for PostgreSQL PVC
+      ansible.builtin.command:
+        cmd: kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/postgres-pvc -n perf-lab --timeout=120s
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for Grafana PVC
+      ansible.builtin.command:
+        cmd: kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/grafana-pvc -n perf-lab --timeout=120s
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for app rollout
+      ansible.builtin.command: kubectl rollout status deployment/app -n perf-lab --timeout=180s
+      changed_when: false
+
+    - name: Wait for PostgreSQL rollout
+      ansible.builtin.command: kubectl rollout status deployment/postgres -n perf-lab --timeout=180s
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for Redis rollout
+      ansible.builtin.command: kubectl rollout status deployment/redis -n perf-lab --timeout=180s
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for postgres-exporter rollout
+      ansible.builtin.command: kubectl rollout status deployment/postgres-exporter -n perf-lab --timeout=180s
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for redis-exporter rollout
+      ansible.builtin.command: kubectl rollout status deployment/redis-exporter -n perf-lab --timeout=180s
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for node-exporter rollout
+      ansible.builtin.command: kubectl rollout status daemonset/node-exporter -n perf-lab --timeout=180s
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for cAdvisor rollout
+      ansible.builtin.command: kubectl rollout status daemonset/cadvisor -n perf-lab --timeout=180s
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for Prometheus rollout
+      ansible.builtin.command: kubectl rollout status deployment/prometheus -n perf-lab --timeout=180s
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for Grafana rollout
+      ansible.builtin.command: kubectl rollout status deployment/grafana -n perf-lab --timeout=180s
+      changed_when: false
+      failed_when: false
+
+    - name: Check Kubernetes pods
+      ansible.builtin.command: kubectl get pods -n perf-lab
+      changed_when: false
+
+    - name: Check Kubernetes services
+      ansible.builtin.command: kubectl get svc -n perf-lab
+      changed_when: false
+
+    - name: Check Kubernetes PVC
+      ansible.builtin.command: kubectl get pvc -n perf-lab
+      changed_when: false
+
+    - name: Wait for Kubernetes application endpoint
+      ansible.builtin.command:
+        cmd: curl -s -o /tmp/k8s_app_check.out -w "%{http_code}" http://localhost:30080/users
+      register: k8s_app_check
+      retries: 20
+      delay: 3
+      until: k8s_app_check.stdout == "200"
+      changed_when: false
+
+    - name: Wait for Kubernetes Prometheus
+      ansible.builtin.command:
+        cmd: curl -s -o /tmp/k8s_prometheus_check.out -w "%{http_code}" http://localhost:30090/-/ready
+      register: k8s_prometheus_check
+      retries: 20
+      delay: 3
+      until: k8s_prometheus_check.stdout == "200"
+      changed_when: false
+
+    - name: Check Kubernetes Grafana
+      ansible.builtin.command:
+        cmd: curl -s -o /tmp/k8s_grafana_check.out -w "%{http_code}" http://localhost:30030
+      register: k8s_grafana_check
+      retries: 20
+      delay: 3
+      until: k8s_grafana_check.stdout in ["200", "302"]
+      changed_when: false

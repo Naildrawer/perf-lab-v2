@@ -1,0 +1,21 @@
+---
+- name: Stop Docker Compose mode
+  hosts: local
+  gather_facts: false
+
+  vars:
+    project_dir: "{{ playbook_dir }}/../.."
+
+  tasks:
+    - name: Stop Docker Compose
+      ansible.builtin.command:
+        cmd: docker compose down --remove-orphans
+        chdir: "{{ project_dir }}"
+      failed_when: false
+      changed_when: true
+
+    - name: Check Docker containers
+      ansible.builtin.command:
+        cmd: docker ps
+      changed_when: false
+      failed_when: false
