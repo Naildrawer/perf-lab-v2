@@ -33,6 +33,9 @@ spec:
         app: grafana
 
     spec:
+      securityContext:
+        fsGroup: 472
+
       containers:
         - name: grafana
           image: grafana/grafana:latest
@@ -51,24 +54,34 @@ spec:
             - name: grafana-data
               mountPath: /var/lib/grafana
 
-            - name: grafana-provisioning
-              mountPath: /etc/grafana/provisioning
+            - name: grafana-provisioning-datasources
+              mountPath: /etc/grafana/provisioning/datasources
+              readOnly: true
+
+            - name: grafana-provisioning-dashboards
+              mountPath: /etc/grafana/provisioning/dashboards
+              readOnly: true
 
             - name: grafana-dashboards
               mountPath: /var/lib/grafana/dashboards
+              readOnly: true
 
       volumes:
         - name: grafana-data
           persistentVolumeClaim:
             claimName: grafana-pvc
 
-        - name: grafana-provisioning
-          hostPath:
-            path: /home/admin/training/java-performance-demo/grafana/provisioning
+        - name: grafana-provisioning-datasources
+          configMap:
+            name: grafana-datasources
+
+        - name: grafana-provisioning-dashboards
+          configMap:
+            name: grafana-dashboard-providers
 
         - name: grafana-dashboards
-          hostPath:
-            path: /home/admin/training/java-performance-demo/grafana/dashboards
+          configMap:
+            name: grafana-dashboards
 
 ---
 

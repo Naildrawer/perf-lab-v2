@@ -48,6 +48,20 @@
             --from-file=prometheus.yml=prometheus/prometheus-k8s.yml \
             --dry-run=client -o yaml | kubectl apply -f -
 
+          kubectl create configmap grafana-datasources -n perf-lab \
+            --from-file=datasource.yml=grafana/provisioning/datasources/datasource.yml \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl create configmap grafana-dashboard-providers -n perf-lab \
+            --from-file=dashboard.yml=grafana/provisioning/dashboards/dashboard.yml \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl delete configmap grafana-dashboards -n perf-lab --ignore-not-found
+
+          kubectl create configmap grafana-dashboards -n perf-lab \
+            --from-file=java-performance-docker-compose.json="grafana/dashboards/Java Performance Docker Compose.json" \
+            --from-file=java-performance-kubernetes.json="grafana/dashboards/Java Performance Kubernetes.json"
+
           kubectl apply -f k8s/prometheus.yaml
 
           kubectl wait \
@@ -58,6 +72,8 @@
 
           kubectl apply -f k8s/grafana.yaml
           kubectl apply -f k8s/ingress.yaml
+
+          kubectl rollout restart deployment/grafana -n perf-lab
         chdir: "{{ project_dir }}"
       changed_when: true
 
