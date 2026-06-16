@@ -55,7 +55,7 @@
 
           kubectl apply -f k8s/grafana-datasources.yaml
           kubectl apply -f k8s/grafana-dashboard-providers.yaml
-          kubectl apply -f k8s/grafana-dashboards.yaml
+          kubectl apply --server-side -f k8s/grafana-dashboards.yaml
           kubectl apply -f k8s/grafana.yaml
 
           kubectl apply -f k8s/ingress.yaml
