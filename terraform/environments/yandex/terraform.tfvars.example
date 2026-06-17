@@ -1,0 +1,25 @@
+# Copy this file to terraform.tfvars and fill real values.
+
+cloud_id  = "your-yandex-cloud-id"
+folder_id = "your-yandex-folder-id"
+zone      = "ru-central1-a"
+
+# You can find Ubuntu image IDs in Yandex Cloud.
+# Keep this as a placeholder until you decide to run real cloud apply.
+image_id = "your-ubuntu-image-id"
+
+vm_name   = "java-performance-demo"
+cores     = 4
+memory    = 8
+disk_size = 50
+
+ssh_user            = "ubuntu"
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+
+# For real usage, restrict SSH access to your public IP, for example:
+# allowed_ssh_cidr_blocks = ["1.2.3.4/32"]
+
+allowed_ssh_cidr_blocks        = ["0.0.0.0/0"]
+allowed_app_cidr_blocks        = ["0.0.0.0/0"]
+allowed_grafana_cidr_blocks    = ["0.0.0.0/0"]
+allowed_prometheus_cidr_blocks = ["0.0.0.0/0"]
