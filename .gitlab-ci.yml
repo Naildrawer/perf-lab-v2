@@ -1,108 +1,105 @@
 stages:
-
-* validate
-* build
-* docker
+  - validate
+  - build
+  - docker
 
 variables:
-MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
-DOCKER_TLS_CERTDIR: ""
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  DOCKER_TLS_CERTDIR: ""
 
 cache:
-key: "$CI_COMMIT_REF_SLUG"
-paths:
-- app/.m2/repository
+  key: "$CI_COMMIT_REF_SLUG"
+  paths:
+    - app/.m2/repository
 
 terraform:fmt:
-stage: validate
-image:
-name: hashicorp/terraform:1.9.8
-entrypoint: [""]
-script:
-- terraform version
-- terraform fmt -recursive -check terraform/
+  stage: validate
+  image:
+    name: hashicorp/terraform:1.9.8
+    entrypoint: [""]
+  script:
+    - terraform version
+    - terraform fmt -recursive -check terraform/
 
 terraform:validate:
-stage: validate
-image:
-name: hashicorp/terraform:1.9.8
-entrypoint: [""]
-script:
-- terraform version
-- |
-cat > ~/.terraformrc <<'EOF'
-provider_installation {
-network_mirror {
-url     = "https://terraform-mirror.yandexcloud.net/"
-include = ["registry.terraform.io/*/*"]
-}
+  stage: validate
+  image:
+    name: hashicorp/terraform:1.9.8
+    entrypoint: [""]
+  script:
+    - terraform version
+    - |
+      cat > ~/.terraformrc <<'EOF'
+      provider_installation {
+        network_mirror {
+          url     = "https://terraform-mirror.yandexcloud.net/"
+          include = ["registry.terraform.io/*/*"]
+        }
 
-```
-    direct {
-      exclude = ["registry.terraform.io/*/*"]
-    }
-  }
-  EOF
-- cd terraform/environments/yandex
-- rm -rf .terraform .terraform.lock.hcl
-- terraform init -backend=false -upgrade
-- terraform validate
-- terraform providers
-```
+        direct {
+          exclude = ["registry.terraform.io/*/*"]
+        }
+      }
+      EOF
+    - cd terraform/environments/yandex
+    - rm -rf .terraform .terraform.lock.hcl
+    - terraform init -backend=false -upgrade
+    - terraform validate
+    - terraform providers
 
 kubernetes:validate:
-stage: validate
-image:
-name: bitnami/kubectl:latest
-entrypoint: [""]
-script:
-- kubectl version --client
-- |
-for file in k8s/*.yaml; do
-echo "Validating $file"
-kubectl apply --dry-run=client -f "$file"
-done
+  stage: validate
+  image:
+    name: bitnami/kubectl:latest
+    entrypoint: [""]
+  script:
+    - kubectl version --client
+    - |
+      for file in k8s/*.yaml; do
+        echo "Validating $file"
+        kubectl apply --dry-run=client -f "$file"
+      done
 
 ansible:syntax:
-stage: validate
-image: python:3.12-slim
-before_script:
-- pip install --no-cache-dir ansible
-script:
-- cd ansible
-- ansible-playbook --syntax-check playbooks/docker-up.yml
-- ansible-playbook --syntax-check playbooks/docker-down.yml
-- ansible-playbook --syntax-check playbooks/k8s-up.yml
-- ansible-playbook --syntax-check playbooks/k8s-down.yml
-- ansible-playbook --syntax-check playbooks/install-docker.yml
-- ansible-playbook --syntax-check playbooks/install-k3s.yml
+  stage: validate
+  image: python:3.12-slim
+  before_script:
+    - pip install --no-cache-dir ansible
+  script:
+    - cd ansible
+    - ansible-playbook --syntax-check playbooks/docker-up.yml
+    - ansible-playbook --syntax-check playbooks/docker-down.yml
+    - ansible-playbook --syntax-check playbooks/k8s-up.yml
+    - ansible-playbook --syntax-check playbooks/k8s-down.yml
+    - ansible-playbook --syntax-check playbooks/install-docker.yml
+    - ansible-playbook --syntax-check playbooks/install-k3s.yml
 
 spring:build:
-stage: build
-image: maven:3.9.9-eclipse-temurin-17
-script:
-- cd app
-- mvn clean package -DskipTests
-artifacts:
-paths:
-- app/target/*.jar
-expire_in: 1 week
+  stage: build
+  image: maven:3.9.9-eclipse-temurin-17
+  script:
+    - cd app
+    - mvn clean package -DskipTests
+  artifacts:
+    paths:
+      - app/target/*.jar
+    expire_in: 1 week
 
 docker:build:
-stage: docker
-image: docker:27
-services:
-- docker:27-dind
-needs:
-- spring:build
-script:
-- docker version
-- docker build -t java-performance-demo-app:$CI_COMMIT_SHORT_SHA ./app
+  stage: docker
+  image: docker:27
+  services:
+    - docker:27-dind
+  needs:
+    - spring:build
+  script:
+    - docker version
+    - docker build -t java-performance-demo-app:$CI_COMMIT_SHORT_SHA ./app
 
 docker:compose:config:
-stage: docker
-image: docker:27
-services:
-- docker:27-dind
-script:
-- docker compose -f docker-compose.yml config
+  stage: docker
+  image: docker:27
+  services:
+    - docker:27-dind
+  script:
+    - docker compose -f docker-compose.yml config

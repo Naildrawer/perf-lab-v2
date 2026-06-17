@@ -1,333 +1,520 @@
-# Java Performance Lab
+# Java Performance Demo
 
-Небольшой учебный проект для практики в performance engineering и мониторинге Java-приложения.
+Учебный production-like проект для практики в **performance engineering**, мониторинге, Kubernetes, Ansible, Terraform и CI/CD.
 
-В проекте есть Spring Boot сервис, PostgreSQL, Redis, Nginx, Prometheus, Grafana и exporters. Один и тот же стенд можно запустить двумя способами:
+Проект показывает, как одно Java-приложение можно запускать в двух режимах:
 
-* через Docker Compose;
-* через Kubernetes/k3s.
+- локально через **Docker Compose**;
+- в Kubernetes через **k3s**.
 
-Идея проекта — посмотреть, как приложение ведёт себя в разных окружениях, как собираются метрики и как их можно анализировать в Grafana.
+Вокруг приложения собран полный observability-стенд: **Prometheus, Grafana, exporters, cAdvisor, node-exporter**, а инфраструктурная часть описана через **Kubernetes manifests, Ansible и Terraform cloud-ready слой**.
 
-\---
+---
 
-## Что есть в проекте
+## Цель проекта
 
-* Spring Boot приложение с endpoint `/users`;
-* PostgreSQL с тестовой таблицей `users`;
-* Redis для cache;
-* Nginx как балансировщик между двумя инстансами приложения;
-* Prometheus для сбора метрик;
-* Grafana для дашбордов;
-* postgres-exporter;
-* redis-exporter;
-* node-exporter;
-* cAdvisor;
-* Kubernetes manifests для запуска в k3s.
+Цель проекта — не просто запустить Spring Boot приложение, а собрать воспроизводимый стенд, который можно использовать для демонстрации навыков:
 
-\---
+- контейнеризации;
+- Kubernetes manifests;
+- мониторинга Java-приложения;
+- сбора JVM, HTTP, PostgreSQL, Redis, container и node metrics;
+- persistence через PVC;
+- provisioning Grafana и Prometheus через ConfigMap;
+- автоматизации через Ansible;
+- cloud-ready Infrastructure as Code через Terraform;
+- базового GitLab CI pipeline.
 
-## Архитектура Docker Compose
+---
 
-В Docker Compose поднимается весь стенд одной командой.
+## Стек
 
-Состав:
+### Application
 
-* `nginx` — принимает запросы снаружи;
-* `spring-app` — первый инстанс приложения;
-* `spring-app-2` — второй инстанс приложения;
-* `postgres` — база данных;
-* `redis` — cache;
-* `prometheus` — сбор метрик;
-* `grafana` — визуализация;
-* `cadvisor` — метрики контейнеров;
-* `node-exporter` — метрики хоста;
-* `postgres-exporter` — метрики PostgreSQL;
-* `redis-exporter` — метрики Redis.
+- Java 17
+- Spring Boot
+- Spring Web
+- Spring Data JDBC
+- Spring Cache
+- Redis
+- PostgreSQL
+- Spring Actuator
+- Micrometer Prometheus Registry
 
-Снаружи приложение открывается через Nginx:
+### Infrastructure
 
-```bash
-http://localhost/users
+- Docker
+- Docker Compose
+- Nginx
+- Kubernetes / k3s
+- Ansible
+- Terraform
+
+### Monitoring
+
+- Prometheus
+- Grafana
+- postgres-exporter
+- redis-exporter
+- node-exporter
+- cAdvisor
+- kubelet cAdvisor metrics
+
+### CI/CD
+
+- GitLab CI
+- Terraform format/validate
+- Kubernetes manifests validation
+- Ansible syntax check
+- Maven build
+- Docker build
+- Docker Compose config validation
+
+---
+
+## Архитектура
+
+### Docker Compose режим
+
+```text
+Client
+  -> Nginx :80
+      -> Spring Boot app #1
+      -> Spring Boot app #2
+          -> PostgreSQL
+          -> Redis
+
+Prometheus
+  -> Spring Boot /actuator/prometheus
+  -> PostgreSQL exporter
+  -> Redis exporter
+  -> node-exporter
+  -> cAdvisor
+
+Grafana
+  -> Prometheus
 ```
 
-Grafana:
+### Kubernetes/k3s режим
 
-```bash
-http://localhost:3000
+```text
+Client
+  -> NodePort :30080
+      -> Service app
+          -> Spring Boot pods
+              -> PostgreSQL Service
+              -> Redis Service
+
+Prometheus
+  -> Kubernetes pod discovery
+  -> Spring Boot /actuator/prometheus
+  -> PostgreSQL exporter
+  -> Redis exporter
+  -> node-exporter
+  -> cAdvisor
+  -> kubelet cAdvisor metrics
+
+Grafana
+  -> Prometheus datasource
+  -> provisioned dashboards
 ```
 
-Prometheus:
+---
 
-```bash
-http://localhost:9090
+## Основные endpoint'ы
+
+### Docker Compose
+
+| Сервис | URL |
+|---|---|
+| Application | `http://localhost/users` |
+| Grafana | `http://localhost:3000` |
+| Prometheus | `http://localhost:9090` |
+
+### Kubernetes/k3s
+
+| Сервис | URL |
+|---|---|
+| Application | `http://localhost:30080/users` |
+| Grafana | `http://localhost:30030` |
+| Prometheus | `http://localhost:30090` |
+
+Grafana credentials для lab:
+
+```text
+login: admin
+password: admin
 ```
 
-\---
+---
 
-## Запуск через Docker Compose
+## Структура проекта
 
-```bash
-cd \~/training/performance-lab
-
-sudo docker compose up -d --build
+```text
+.
+├── app/                         # Spring Boot приложение
+├── ansible/                     # Ansible playbooks
+├── docker-compose.yml           # Docker Compose стенд
+├── grafana/
+│   ├── dashboards/              # JSON dashboards
+│   └── provisioning/            # Datasource и dashboard provider для Docker Compose
+├── k8s/                         # Kubernetes manifests
+├── nginx/                       # Nginx config
+├── postgres/                    # init.sql
+├── prometheus/                  # Prometheus configs для Docker/Kubernetes
+├── terraform/                   # Cloud-ready Terraform слой
+└── .gitlab-ci.yml               # GitLab CI pipeline
 ```
 
-Проверить контейнеры:
+---
+
+## Быстрый запуск через Ansible
+
+### Установить Docker
 
 ```bash
-docker ps
+cd ~/training/java-performance-demo/ansible
+
+ansible-playbook playbooks/install-docker.yml
 ```
 
-Проверить приложение:
+### Установить k3s
+
+```bash
+cd ~/training/java-performance-demo/ansible
+
+ansible-playbook playbooks/install-k3s.yml
+```
+
+---
+
+## Docker Compose режим
+
+Запуск:
+
+```bash
+cd ~/training/java-performance-demo/ansible
+
+ansible-playbook playbooks/docker-up.yml
+```
+
+Что делает playbook:
+
+- останавливает k3s;
+- выполняет `k3s-killall.sh`, чтобы убрать оставшиеся pod-процессы и освободить порты;
+- запускает Docker Compose;
+- проверяет доступность application, Prometheus и Grafana.
+
+Проверка вручную:
 
 ```bash
 curl http://localhost/users
+curl http://localhost:9090/-/ready
+curl -I http://localhost:3000
 ```
 
-Остановить Docker-стенд:
+Остановка:
 
 ```bash
-sudo docker compose down
+cd ~/training/java-performance-demo/ansible
+
+ansible-playbook playbooks/docker-down.yml
 ```
 
-\---
+---
 
-## Архитектура Kubernetes/k3s
+## Kubernetes/k3s режим
 
-Во второй части проекта тот же стенд перенесён в Kubernetes.
-
-В Kubernetes используются:
-
-* `Namespace`;
-* `Deployment`;
-* `Service`;
-* `NodePort`;
-* `Ingress`;
-* `ConfigMap`;
-* `PVC`;
-* `RBAC`;
-* `DaemonSet`.
-
-Основные сервисы:
-
-* Spring Boot приложение — 2 pod’а;
-* PostgreSQL;
-* Redis;
-* Prometheus;
-* Grafana;
-* exporters.
-
-Внешние порты:
-
-|Сервис|Порт|
-|-|-|
-|Spring Boot|`30080`|
-|Grafana|`30030`|
-|Prometheus|`30090`|
-
-Проверить приложение в Kubernetes:
+Запуск:
 
 ```bash
-curl http://localhost:30080/users
+cd ~/training/java-performance-demo/ansible
+
+ansible-playbook playbooks/k8s-up.yml
 ```
 
-Grafana:
+Что делает playbook:
 
-```bash
-http://localhost:30030
-```
+- останавливает Docker Compose;
+- запускает k3s;
+- применяет Kubernetes manifests из `k8s/`;
+- ждёт rollout основных компонентов;
+- проверяет pod'ы, service'ы и PVC;
+- проверяет доступность application, Prometheus и Grafana.
 
-Prometheus:
-
-```bash
-http://localhost:30090
-```
-
-\---
-
-## Запуск Kubernetes-стенда
-
-```bash
-cd \~/training/java-performance-demo
-
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/postgres.yaml
-kubectl apply -f k8s/redis.yaml
-kubectl apply -f k8s/app.yaml
-kubectl apply -f k8s/postgres-exporter.yaml
-kubectl apply -f k8s/redis-exporter.yaml
-kubectl apply -f k8s/node-exporter.yaml
-kubectl apply -f k8s/cadvisor.yaml
-kubectl apply -f k8s/prometheus-rbac-service-view.yaml
-```
-
-Обновить конфиг Prometheus:
-
-```bash
-kubectl create configmap prometheus-config -n perf-lab \\
-  --from-file=prometheus.yml=prometheus/prometheus-k8s.yml \\
-  --dry-run=client -o yaml | kubectl apply -f -
-```
-
-Запустить Prometheus и Grafana:
-
-```bash
-kubectl apply -f k8s/prometheus.yaml
-kubectl apply -f k8s/grafana.yaml
-```
-
-Проверить pod’ы:
-
-```bash
-kubectl get pods -n perf-lab
-```
-
-\---
-
-## Как переключаться между Docker и Kubernetes
-
-Я не запускаю Docker Compose и Kubernetes одновременно, чтобы не ловить конфликты портов.
-
-### Перейти в Docker-режим
-
-```bash
-sudo systemctl stop k3s
-sudo /usr/local/bin/k3s-killall.sh
-
-cd \~/training/performance-lab
-sudo docker compose up -d --build
-```
-
-### Вернуться в Kubernetes-режим
-
-```bash
-cd \~/training/performance-lab
-sudo docker compose down
-
-sudo systemctl start k3s
-sleep 40
-
-kubectl get pods -n perf-lab
-```
-
-\---
-
-## Метрики
-
-Prometheus собирает:
-
-* HTTP-метрики Spring Boot;
-* JVM memory;
-* JVM threads;
-* GC;
-* PostgreSQL metrics;
-* Redis metrics;
-* container metrics;
-* host metrics.
-
-Для Spring Boot используется endpoint:
-
-```bash
-/actuator/prometheus
-```
-
-В Docker Compose Prometheus ходит к:
-
-```text
-app:8080
-app2:8080
-```
-
-В Kubernetes используется discovery pod’ов через Prometheus config.
-
-\---
-
-## Дашборды Grafana
-
-В проекте есть отдельные дашборды для Docker Compose и Kubernetes.
-
-Docker dashboard лучше открывать в Docker Grafana:
-
-```bash
-http://localhost:3000
-```
-
-Kubernetes dashboard лучше открывать в Kubernetes Grafana:
-
-```bash
-http://localhost:30030
-```
-
-Важно не смешивать Docker dashboard с Kubernetes Prometheus и наоборот, потому что там разные labels и targets.
-
-\---
-
-## Простая нагрузка
-
-Docker:
-
-```bash
-for i in {1..100}; do
-  curl -s http://localhost/users > /dev/null
-done
-```
-
-Kubernetes:
-
-```bash
-for i in {1..100}; do
-  curl -s http://localhost:30080/users > /dev/null
-done
-```
-
-После этого можно смотреть изменения в Grafana.
-
-\---
-
-## Полезные команды
-
-Docker:
-
-```bash
-docker ps
-docker logs spring-app --tail=100
-docker logs prometheus --tail=100
-docker logs grafana --tail=100
-```
-
-Kubernetes:
+Проверка вручную:
 
 ```bash
 kubectl get pods -n perf-lab
 kubectl get svc -n perf-lab
-kubectl logs -n perf-lab deployment/app --tail=100
-kubectl logs -n perf-lab deployment/prometheus --tail=100
-kubectl logs -n perf-lab deployment/grafana --tail=100
+kubectl get pvc -n perf-lab
+
+curl http://localhost:30080/users
+curl http://localhost:30090/-/ready
+curl -I http://localhost:30030
 ```
 
-Проверить занятые порты:
+Остановка k3s-режима:
 
 ```bash
-sudo ss -ltnp | egrep ':80|:8080|:8081|:9090|:3000|:30080|:30030|:30090|:9100'
+cd ~/training/java-performance-demo/ansible
+
+ansible-playbook playbooks/k8s-down.yml
 ```
 
-\---
+---
 
-## Что я отработал в этом проекте
+## Kubernetes manifests
 
-* запуск Java-приложения в Docker Compose;
-* перенос приложения в Kubernetes/k3s;
-* настройку Nginx load balancing;
-* подключение PostgreSQL и Redis;
-* настройку Prometheus;
-* настройку Grafana dashboards;
-* работу с exporters;
-* настройку Kubernetes Services, Deployments, PVC, ConfigMap и RBAC;
-* диагностику портов, targets, labels и PromQL-запросов;
-* сравнение Docker Compose и Kubernetes окружений.
+В папке `k8s/` описаны:
 
-\---
+- `namespace.yaml`
+- `app.yaml`
+- `postgres.yaml`
+- `redis.yaml`
+- `postgres-exporter.yaml`
+- `redis-exporter.yaml`
+- `node-exporter.yaml`
+- `cadvisor.yaml`
+- `prometheus-rbac-service-view.yaml`
+- `prometheus-config.yaml`
+- `prometheus.yaml`
+- `grafana-datasources.yaml`
+- `grafana-dashboard-providers.yaml`
+- `grafana-dashboards.yaml`
+- `grafana.yaml`
+- `ingress.yaml`
 
-## 
+Prometheus и Grafana не настраиваются руками после запуска. Их конфигурация описана как Kubernetes manifests:
 
+```text
+Prometheus config     -> ConfigMap
+Grafana datasource    -> ConfigMap
+Grafana dashboards    -> ConfigMap
+Grafana runtime data  -> PVC
+Prometheus TSDB       -> PVC
+PostgreSQL data       -> PVC
+```
+
+---
+
+## Grafana provisioning
+
+Grafana dashboards и datasource воспроизводятся из Git.
+
+В Kubernetes используются:
+
+```text
+k8s/grafana-datasources.yaml
+k8s/grafana-dashboard-providers.yaml
+k8s/grafana-dashboards.yaml
+k8s/grafana.yaml
+```
+
+Это значит, что после развёртывания на новой VM Grafana автоматически получает:
+
+- Prometheus datasource;
+- dashboard provider;
+- dashboards из JSON.
+
+Важно: ручные изменения, сделанные в UI Grafana, не являются source of truth. Если dashboard изменён руками, его нужно экспортировать в JSON и сохранить в репозитории.
+
+---
+
+## Prometheus
+
+В Docker Compose Prometheus использует:
+
+```text
+prometheus/prometheus.yml
+```
+
+В Kubernetes Prometheus использует:
+
+```text
+k8s/prometheus-config.yaml
+```
+
+Prometheus в Kubernetes хранит TSDB в PVC:
+
+```text
+prometheus-pvc -> /prometheus
+```
+
+Это позволяет переживать restart pod'а, restart k3s и reboot VM при сохранении локального диска.
+
+---
+
+## Persistence
+
+В текущем lab-стенде используются PVC на local-path storage k3s.
+
+Данные переживают:
+
+- restart pod'а;
+- restart k3s;
+- reboot VM.
+
+Но если VM или её диск удалены, local-path данные будут потеряны.
+
+Production-like развитие:
+
+```text
+PostgreSQL live data  -> cloud disk / network storage
+Prometheus TSDB       -> cloud disk / network storage
+Grafana runtime data  -> cloud disk / network storage
+```
+
+S3/Object Storage не используется как live-volume для PostgreSQL или Prometheus.
+
+S3/Object Storage можно добавить позже для:
+
+- PostgreSQL backups;
+- long-term metrics через Thanos / Mimir / VictoriaMetrics;
+- artifact storage.
+
+---
+
+## Terraform
+
+Terraform-слой находится в папке:
+
+```text
+terraform/
+```
+
+Он добавлен как cloud-ready часть проекта.
+
+Terraform отвечает за будущую подготовку инфраструктуры в Yandex Cloud:
+
+- VPC network;
+- subnet;
+- security group;
+- virtual machine;
+- boot disk;
+- public IP;
+- SSH access.
+
+Terraform не разворачивает Kubernetes manifests. Он готовит инфраструктуру, а Ansible уже настраивает VM и запускает стенд.
+
+Проверка форматирования:
+
+```bash
+cd ~/training/java-performance-demo
+
+terraform fmt -recursive
+```
+
+Если Terraform Registry недоступен из-за geo-block, можно использовать provider mirror Yandex Cloud через `~/.terraformrc`:
+
+```hcl
+provider_installation {
+  network_mirror {
+    url     = "https://terraform-mirror.yandexcloud.net/"
+    include = ["registry.terraform.io/*/*"]
+  }
+
+  direct {
+    exclude = ["registry.terraform.io/*/*"]
+  }
+}
+```
+
+После этого:
+
+```bash
+cd ~/training/java-performance-demo/terraform/environments/yandex
+
+rm -rf .terraform .terraform.lock.hcl
+terraform init -upgrade
+terraform validate
+```
+
+Подробнее см. `terraform/README.md`.
+
+---
+
+## GitLab CI
+
+В проект добавлен `.gitlab-ci.yml`.
+
+Pipeline выполняет:
+
+- `terraform fmt`;
+- `terraform init` / `terraform validate`;
+- Kubernetes manifests dry-run validation;
+- Ansible playbooks syntax check;
+- Spring Boot Maven build;
+- Docker image build;
+- Docker Compose config validation.
+
+Pipeline ничего не деплоит автоматически и не меняет состояние VM. Это безопасный CI-слой для проверки проекта.
+
+---
+
+## Полезные команды
+
+### Docker
+
+```bash
+docker ps
+docker compose ps
+docker compose logs -f
+docker compose down
+```
+
+### Kubernetes
+
+```bash
+kubectl get pods -n perf-lab
+kubectl get svc -n perf-lab
+kubectl get pvc -n perf-lab
+kubectl get configmap -n perf-lab
+
+kubectl logs -n perf-lab deployment/app
+kubectl logs -n perf-lab deployment/prometheus
+kubectl logs -n perf-lab deployment/grafana
+```
+
+### Проверка Grafana ConfigMaps
+
+```bash
+kubectl get cm -n perf-lab | grep grafana
+kubectl exec -n perf-lab deployment/grafana -- ls -lah /var/lib/grafana/dashboards
+```
+
+### Проверка Prometheus PVC
+
+```bash
+kubectl get pvc prometheus-pvc -n perf-lab
+kubectl exec -n perf-lab deployment/prometheus -- sh -c 'ls -lah /prometheus && du -sh /prometheus'
+```
+
+---
+
+## Текущий статус проекта
+
+Проект завершён как **portfolio/lab v1**.
+
+Реализовано:
+
+- Spring Boot приложение;
+- Docker Compose стенд;
+- Kubernetes/k3s стенд;
+- Prometheus + Grafana monitoring;
+- exporters;
+- PVC и ConfigMap;
+- Grafana provisioning;
+- Prometheus persistence;
+- Ansible automation;
+- Terraform cloud-ready слой;
+- GitLab CI validation/build pipeline.
+
+Дальше проект можно развивать в сторону:
+
+- real cloud apply через Terraform;
+- GitLab Runner и полноценный pipeline;
+- Docker image push в registry;
+- controlled deploy из CI;
+- managed/cloud storage;
+- long-term metrics через Thanos/Mimir/VictoriaMetrics.
