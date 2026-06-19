@@ -118,7 +118,7 @@ deploy:k8s:
     - kubectl -n perf-lab patch serviceaccount default -p '{"imagePullSecrets":[{"name":"gitlab-registry"}]}' || true
     - kubectl -n perf-lab set image deployment/app app="$APP_IMAGE"
     - kubectl -n perf-lab rollout status deployment/app --timeout=180s
-    - kubectl -n perf-lab get pods -l app=app -o wide
+    - kubectl -n perf-lab get pods -l app=spring -o wide
   rules:
     - if: '$CI_COMMIT_BRANCH == "perf-lab-dev"'
       when: manual
