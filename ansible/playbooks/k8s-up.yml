@@ -27,6 +27,27 @@
       until: kubectl_nodes.rc == 0
       changed_when: false
 
+    - name: Build application Docker image for k3s
+      ansible.builtin.command:
+        cmd: docker build -t docker.io/library/java-performance-demo-app:latest app
+        chdir: "{{ project_dir }}"
+      changed_when: true
+
+    - name: Save application Docker image
+      ansible.builtin.command:
+        cmd: docker save docker.io/library/java-performance-demo-app:latest -o /tmp/java-performance-demo-app.tar
+      changed_when: true
+
+    - name: Import application image into k3s containerd
+      ansible.builtin.command:
+        cmd: sudo -n k3s ctr images import /tmp/java-performance-demo-app.tar
+      changed_when: true
+
+    - name: Remove temporary application image archive
+      ansible.builtin.file:
+        path: /tmp/java-performance-demo-app.tar
+        state: absent
+
     - name: Apply Kubernetes manifests
       ansible.builtin.shell:
         cmd: |

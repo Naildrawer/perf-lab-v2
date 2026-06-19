@@ -115,6 +115,9 @@ deploy:k8s:
         --docker-username="$REGISTRY_DEPLOY_USER" \
         --docker-password="$REGISTRY_DEPLOY_PASSWORD" \
         --dry-run=client -o yaml | kubectl apply -f -
+    - kubectl -n perf-lab patch deployment app \
+        --type='strategic' \
+        -p '{"spec":{"template":{"spec":{"containers":[{"name":"app","imagePullPolicy":"IfNotPresent"}]}}}}'
     - kubectl -n perf-lab patch serviceaccount default -p '{"imagePullSecrets":[{"name":"gitlab-registry"}]}' || true
     - kubectl -n perf-lab set image deployment/app app="$APP_IMAGE"
     - kubectl -n perf-lab rollout status deployment/app --timeout=180s
