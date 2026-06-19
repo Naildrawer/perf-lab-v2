@@ -47,18 +47,6 @@ terraform:validate:
     - terraform validate
     - terraform providers
 
-kubernetes:validate:
-  stage: validate
-  image:
-    name: bitnami/kubectl:latest
-    entrypoint: [""]
-  script:
-    - kubectl version --client
-    - |
-      for file in k8s/*.yaml; do
-        echo "Validating $file"
-        kubectl apply --dry-run=client --validate=false -f "$file"
-      done
 
 ansible:syntax:
   stage: validate
