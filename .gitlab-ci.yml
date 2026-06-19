@@ -2,10 +2,14 @@ stages:
   - validate
   - build
   - docker
+  - deploy
 
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   DOCKER_TLS_CERTDIR: ""
+  APP_IMAGE: "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_SHORT_SHA"
+  APP_IMAGE_BRANCH: "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_REF_SLUG"
+
 
 cache:
   key: "$CI_COMMIT_REF_SLUG"
@@ -73,7 +77,8 @@ spring:build:
       - app/target/*.jar
     expire_in: 1 week
 
-docker:build:
+
+docker:build:push:
   stage: docker
   image: docker:27
   services:
@@ -82,7 +87,10 @@ docker:build:
     - spring:build
   script:
     - docker version
-    - docker build -t java-performance-demo-app:$CI_COMMIT_SHORT_SHA ./app
+    - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+    - docker build -t "$APP_IMAGE" -t "$APP_IMAGE_BRANCH" ./app
+    - docker push "$APP_IMAGE"
+    - docker push "$APP_IMAGE_BRANCH"
 
 docker:compose:config:
   stage: docker
@@ -91,3 +99,26 @@ docker:compose:config:
     - docker:27-dind
   script:
     - docker compose -f docker-compose.yml config
+
+deploy:k8s:
+  stage: deploy
+  tags:
+    - local-deploy
+  needs:
+    - docker:build:push
+  script:
+    - export KUBECONFIG=/home/gitlab-runner/.kube/config
+    - kubectl -n perf-lab get deployment/app
+    - |
+      kubectl -n perf-lab create secret docker-registry gitlab-registry \
+        --docker-server="$CI_REGISTRY" \
+        --docker-username="$REGISTRY_DEPLOY_USER" \
+        --docker-password="$REGISTRY_DEPLOY_PASSWORD" \
+        --dry-run=client -o yaml | kubectl apply -f -
+    - kubectl -n perf-lab patch serviceaccount default -p '{"imagePullSecrets":[{"name":"gitlab-registry"}]}' || true
+    - kubectl -n perf-lab set image deployment/app app="$APP_IMAGE"
+    - kubectl -n perf-lab rollout status deployment/app --timeout=180s
+    - kubectl -n perf-lab get pods -l app=app -o wide
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "perf-lab-dev"'
+      when: manual
