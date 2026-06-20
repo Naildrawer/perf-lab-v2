@@ -1,40 +1,63 @@
-```gitignore
-# Maven
+# Maven / Java build artifacts
 target/
 **/target/
+.m2/
+app/.m2/
 
-# IntelliJ IDEA
+# IDE files
 .idea/
 *.iml
-
-# VS Code
 .vscode/
 
 # Logs
 *.log
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
-# Docker volumes
+# Environment files and secrets
+.env
+*.env
+*.key
+*.pem
+*.crt
+*.p12
+*.jks
+
+# Docker / local runtime data
 pgdata/
 grafana-data/
 prometheus-data/
+redis-data/
 
-# Temporary files
+# Archives and temporary files
+*.zip
+*.tar
+*.tar.gz
+*.tgz
 *.tmp
 *.swp
+*.bak
+*.orig
 
-# Environment
-.env
+# Terraform local files
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 
-# JMeter results
+# Java diagnostics
+*.hprof
+hs_err_pid*
+
+# Test / benchmark results
 *.jtl
 *.csv
-
-# Heap dumps
-*.hprof
-```
-#Images
-*.tar
