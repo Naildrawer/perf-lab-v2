@@ -7,9 +7,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class GreetingController {
 
     @GetMapping("/instance")
-public String instance() {
-    return System.getenv("HOSTNAME");
-}
+    public String instance() {
+        String hostname = System.getenv("HOSTNAME");
+        return hostname != null ? hostname : "unknown";
+    }
 
     @GetMapping("/hello")
     public String hello() {
