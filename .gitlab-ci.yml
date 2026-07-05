@@ -7,6 +7,8 @@ stages:
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   DOCKER_TLS_CERTDIR: ""
+  DOCKER_HOST: "tcp://docker:2375"
+  DOCKER_DRIVER: "overlay2"
   APP_IMAGE: "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_SHORT_SHA"
   APP_IMAGE_BRANCH: "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_REF_SLUG"
 
@@ -90,15 +92,18 @@ docker:compose:config:
   stage: docker
   image: docker:27
   services:
-    - docker:27-dind
+    - name: docker:27-dind
+      command: ["--tls=false"]
   script:
+    - docker version
     - docker compose -f docker-compose.yml config
 
 docker:build:push:
   stage: docker
   image: docker:27
   services:
-    - docker:27-dind
+    - name: docker:27-dind
+      command: ["--tls=false"]
   needs:
     - spring:build
   script:
@@ -114,18 +119,66 @@ deploy:k8s:
     - local-deploy
   needs:
     - docker:build:push
-  script:
+  environment:
+    name: local-k3s
+  before_script:
     - export KUBECONFIG=/home/gitlab-runner/.kube/config
+    - kubectl version --client=true
+    - |
+      echo "Checking local k3s API..."
+      if kubectl get nodes >/dev/null 2>&1; then
+        echo "k3s API is already available"
+      else
+        echo "k3s API is unavailable. Trying to start k3s via systemd..."
+        sudo -n systemctl start k3s
+      fi
+    - |
+      for i in $(seq 1 60); do
+        if kubectl get nodes >/dev/null 2>&1; then
+          echo "k3s API is ready"
+          kubectl get nodes -o wide
+          break
+        fi
+
+        echo "Waiting for k3s API... ${i}/60"
+        sleep 2
+      done
+    - kubectl get nodes -o wide
+    - kubectl get namespace perf-lab >/dev/null 2>&1 || true
+  script:
     - kubectl apply -f k8s/namespace.yaml
     - |
-      kubectl -n perf-lab create secret docker-registry gitlab-registry         --docker-server="$CI_REGISTRY"         --docker-username="$REGISTRY_DEPLOY_USER"         --docker-password="$REGISTRY_DEPLOY_PASSWORD"         --dry-run=client -o yaml | kubectl apply -f -
+      REGISTRY_USERNAME="${REGISTRY_DEPLOY_USER:-$CI_REGISTRY_USER}"
+      REGISTRY_PASSWORD_VALUE="${REGISTRY_DEPLOY_PASSWORD:-$CI_REGISTRY_PASSWORD}"
+
+      kubectl -n perf-lab create secret docker-registry gitlab-registry \
+        --docker-server="$CI_REGISTRY" \
+        --docker-username="$REGISTRY_USERNAME" \
+        --docker-password="$REGISTRY_PASSWORD_VALUE" \
+        --dry-run=client -o yaml | kubectl apply -f -
     - kubectl -n perf-lab patch serviceaccount default -p '{"imagePullSecrets":[{"name":"gitlab-registry"}]}' || true
     - kubectl apply -f k8s/postgres.yaml
     - kubectl apply -f k8s/redis.yaml
     - kubectl apply -f k8s/app.yaml
     - kubectl -n perf-lab set image deployment/app app="$APP_IMAGE"
+    - kubectl apply -f k8s/postgres-exporter.yaml
+    - kubectl apply -f k8s/redis-exporter.yaml
+    - kubectl apply -f k8s/node-exporter.yaml
+    - kubectl apply -f k8s/prometheus-rbac-service-view.yaml
+    - kubectl apply -f k8s/prometheus-config.yaml
+    - kubectl apply -f k8s/prometheus.yaml
+    - kubectl apply -f k8s/grafana-datasources.yaml
+    - kubectl apply -f k8s/grafana-dashboard-providers.yaml
+    - kubectl apply -f k8s/grafana-dashboards.yaml
+    - kubectl apply -f k8s/grafana.yaml
+    - kubectl apply -f k8s/ingress.yaml
     - kubectl -n perf-lab rollout status deployment/app --timeout=180s
-    - kubectl -n perf-lab get pods -l app=spring -o wide
+    - kubectl -n perf-lab rollout status deployment/postgres --timeout=180s
+    - kubectl -n perf-lab rollout status deployment/redis --timeout=180s
+    - kubectl -n perf-lab rollout status deployment/prometheus --timeout=180s
+    - kubectl -n perf-lab rollout status deployment/grafana --timeout=180s
+    - kubectl -n perf-lab get pods -o wide
+    - kubectl -n perf-lab get svc -o wide
   rules:
     - if: '$CI_COMMIT_BRANCH == "perf-lab-dev"'
       when: manual
