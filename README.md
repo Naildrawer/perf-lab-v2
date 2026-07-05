@@ -20,6 +20,25 @@ Production-like лабораторный стенд для демонстрац�
 * GitLab CI/CD проверяет Terraform, Ansible, Kubernetes manifests, собирает приложение, публикует Docker image и деплоит в k3s через local runner;
 * проект можно поднять на новой VM из репозитория.
 
+
+
+## Требования к окружению
+
+Для локального запуска проекта нужна Linux VM, на которой можно использовать Docker, k3s и Ansible. В моём стенде это VM `ubuntu123`.
+
+Минимальный набор инструментов для полного сценария:
+
+```text
+Docker Engine + Docker Compose
+k3s + kubectl
+Ansible
+GitLab Runner для local deploy
+Terraform CLI для локальной проверки Terraform-кода
+Maven/JDK не обязательны на хосте, потому что сборка выполняется в Docker/CI
+```
+
+Для Docker Compose режима достаточно Docker и Ansible. Для Kubernetes режима нужен k3s. Для CI/CD deploy нужен local GitLab Runner с tag `local-deploy` и доступом к kubeconfig локального k3s.
+
 ## Архитектура Docker Compose режима
 
 ```text
@@ -210,6 +229,8 @@ password: admin
 
 ## Kubernetes secrets
 
+Да, в Kubernetes secrets применяются.
+
 В проекте используется два типа secret'ов.
 
 ### 1\. `app-secrets`
@@ -269,6 +290,194 @@ kubectl -n perf-lab patch serviceaccount default -p '{"imagePullSecrets":\[{"nam
 Это нужно, чтобы k3s мог скачивать приватный Docker image приложения из GitLab Container Registry.
 
 В учебном стенде demo-секреты лежат в manifest'ах. Для production-подхода секреты обычно выносят в CI/CD variables, External Secrets, Sealed Secrets, Vault или другой secret management инструмент.
+
+
+
+## Terraform layer
+
+В проекте добавлен Terraform-слой как cloud-ready часть инфраструктуры. Сейчас основной стенд работает на локальной VM через Docker Compose/k3s, но Terraform показывает, как эту VM и сетевую инфраструктуру можно описать как код для Yandex Cloud.
+
+Terraform лежит в папке:
+
+```text
+terraform/
+```
+
+Структура Terraform-части:
+
+```text
+terraform/
+├── README.md
+├── environments/
+│   └── yandex/
+│       ├── main.tf
+│       ├── variables.tf
+│       ├── outputs.tf
+│       ├── terraform.tfvars.example
+│       └── .gitignore
+└── modules/
+    └── compute-vm/
+        ├── main.tf
+        ├── variables.tf
+        ├── versions.tf
+        └── outputs.tf
+```
+
+### Что сделано в Terraform
+
+В Terraform описана базовая инфраструктура для будущего развёртывания стенда в Yandex Cloud:
+
+* VPC network для проекта;
+* subnet в выбранной availability zone;
+* security group;
+* правила входящего трафика для SSH, приложения, Grafana и Prometheus;
+* виртуальная машина;
+* boot disk;
+* public NAT IP;
+* SSH-доступ через public key;
+* outputs для дальнейшего подключения и передачи VM в Ansible.
+
+Основное окружение находится здесь:
+
+```text
+terraform/environments/yandex
+```
+
+Повторно используемый модуль VM вынесен отдельно:
+
+```text
+terraform/modules/compute-vm
+```
+
+Такое разделение сделано специально: окружение `yandex` описывает сеть, subnet и security group, а модуль `compute-vm` отвечает за создание самой виртуальной машины.
+
+### Какие порты описаны в security group
+
+В Terraform security group открывает порты, которые нужны для стенда:
+
+```text
+22     SSH
+30080  Kubernetes NodePort приложения
+30030  Kubernetes NodePort Grafana
+30090  Kubernetes NodePort Prometheus
+```
+
+CIDR-списки вынесены в переменные:
+
+```text
+allowed\_ssh\_cidr\_blocks
+allowed\_app\_cidr\_blocks
+allowed\_grafana\_cidr\_blocks
+allowed\_prometheus\_cidr\_blocks
+```
+
+В `terraform.tfvars.example` они оставлены как demo-значения `0.0.0.0/0`. Для реального запуска SSH, Grafana и Prometheus лучше ограничивать своим публичным IP, например `/32`.
+
+### Какие outputs подготовлены
+
+Terraform выводит значения, которые нужны после создания VM:
+
+```text
+vm\_public\_ip
+vm\_internal\_ip
+vm\_id
+ssh\_command
+ansible\_inventory\_line
+```
+
+Особенно полезен output:
+
+```text
+ansible\_inventory\_line
+```
+
+Его можно использовать как основу для `ansible/inventory.ini`, чтобы после создания VM через Terraform продолжить настройку через Ansible.
+
+### Что Terraform не делает
+
+Terraform в этом проекте не разворачивает само приложение и Kubernetes manifests. Это намеренное разделение ответственности:
+
+```text
+Terraform  -> cloud infrastructure: network, subnet, security group, VM, public IP
+Ansible    -> server setup: Docker/k3s, automation, switching modes
+Kubernetes -> application stack: app, PostgreSQL, Redis, Prometheus, Grafana
+GitLab CI  -> build, image push, deploy into k3s
+```
+
+То есть Terraform готовит инфраструктурную базу, а приложение и observability stack остаются в `k8s/` и применяются через Ansible или GitLab CI/CD.
+
+### Как Terraform проверяется в CI/CD
+
+В pipeline есть два job'а для Terraform:
+
+```text
+terraform:fmt
+terraform:validate
+```
+
+`terraform:fmt` проверяет форматирование всего Terraform-кода:
+
+```bash
+terraform fmt -recursive -check terraform/
+```
+
+`terraform:validate` переходит в окружение Yandex Cloud, инициализирует Terraform без backend и проверяет конфигурацию:
+
+```bash
+cd terraform/environments/yandex
+terraform init -backend=false -upgrade
+terraform validate
+terraform providers
+```
+
+Для скачивания provider'ов в CI используется Terraform mirror Yandex Cloud через временный `\~/.terraformrc`. Это нужно, чтобы validate job был стабильнее и не зависел от прямого доступа к Terraform Registry.
+
+### Как запустить Terraform вручную
+
+Проверить форматирование:
+
+```bash
+cd \~/training/java-performance-demo
+terraform fmt -recursive
+```
+
+Проверить конфигурацию без создания ресурсов:
+
+```bash
+cd \~/training/java-performance-demo/terraform/environments/yandex
+terraform init -backend=false -upgrade
+terraform validate
+```
+
+Для реального запуска нужно скопировать пример переменных:
+
+```bash
+cp terraform.tfvars.example terraform.tfvars
+```
+
+И заполнить реальные значения:
+
+```hcl
+cloud\_id  = "your-yandex-cloud-id"
+folder\_id = "your-yandex-folder-id"
+zone      = "ru-central1-a"
+image\_id  = "your-ubuntu-image-id"
+```
+
+После этого можно выполнить:
+
+```bash
+terraform plan
+terraform apply
+```
+
+Чтобы не платить за облачные ресурсы после теста:
+
+```bash
+terraform destroy
+```
+
+Terraform-часть показывает, что проект не ограничивается локальным Docker Compose. В нём есть задел под cloud-ready подход: инфраструктура описана как код, параметры вынесены в variables, VM вынесена в отдельный модуль, sensitive/local файлы исключены через `.gitignore`, а Terraform-код проходит `fmt` и `validate` в CI/CD.
 
 ## Структура проекта
 
@@ -491,11 +700,7 @@ rules:
     when: manual
 ```
 
-Для защиты от параллельных деплоев используется:
-
-```yaml
-resource\_group: local-k3s
-```
+Для защиты от параллельных деплоев используется `resource\_group: local-k3s`, чтобы два deploy job не пытались одновременно менять один и тот же локальный k3s cluster.
 
 ## Режимы запуска
 
@@ -896,4 +1101,6 @@ sudo ansible-playbook playbooks/k8s-up.yml
 * rollout status и basic deployment verification;
 * troubleshooting observability stack;
 * воспроизводимость стенда из репозитория.
+
+## 
 
