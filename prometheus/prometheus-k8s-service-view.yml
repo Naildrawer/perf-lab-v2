@@ -2,38 +2,29 @@ global:
   scrape_interval: 5s
 
 scrape_configs:
-
   - job_name: spring
     metrics_path: /actuator/prometheus
-
     kubernetes_sd_configs:
       - role: pod
         namespaces:
           names:
             - perf-lab
-
     relabel_configs:
       - source_labels: [__meta_kubernetes_pod_label_app]
         action: keep
         regex: spring
-
       - source_labels: [__meta_kubernetes_pod_phase]
         action: keep
         regex: Running
-
       - source_labels: [__meta_kubernetes_pod_container_port_number]
         action: keep
         regex: "8080"
-
       - source_labels: [__meta_kubernetes_namespace]
         target_label: namespace
-
       - source_labels: [__meta_kubernetes_pod_name]
         target_label: pod
-
       - source_labels: [__meta_kubernetes_pod_container_name]
         target_label: container
-
       - source_labels: [__meta_kubernetes_pod_ip]
         target_label: instance
 
@@ -51,34 +42,3 @@ scrape_configs:
     static_configs:
       - targets:
           - node-exporter:9100
-
-  # Optional standalone cAdvisor target. Kept for debugging/raw cAdvisor.
-  - job_name: cadvisor
-    static_configs:
-      - targets:
-          - cadvisor:8080
-
-  # Kubernetes-native cAdvisor scrape from kubelet via Kubernetes API proxy.
-  # This is the job used by service-level container CPU/Memory/Network panels.
-  - job_name: kubelet-cadvisor
-    scheme: https
-    metrics_path: /metrics/cadvisor
-
-    kubernetes_sd_configs:
-      - role: node
-
-    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-
-    tls_config:
-      insecure_skip_verify: true
-
-    relabel_configs:
-      - target_label: __address__
-        replacement: kubernetes.default.svc:443
-
-      - source_labels: [__meta_kubernetes_node_name]
-        target_label: __metrics_path__
-        replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
-
-      - source_labels: [__meta_kubernetes_node_name]
-        target_label: node

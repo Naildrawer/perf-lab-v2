@@ -60,7 +60,6 @@
 
           kubectl apply -f k8s/namespace.yaml
 
-
           kubectl apply -f k8s/postgres.yaml
           kubectl apply -f k8s/redis.yaml
           kubectl apply -f k8s/app.yaml
@@ -68,6 +67,7 @@
           kubectl apply -f k8s/postgres-exporter.yaml
           kubectl apply -f k8s/redis-exporter.yaml
           kubectl apply -f k8s/node-exporter.yaml
+          kubectl apply -f k8s/cadvisor.yaml
 
           kubectl apply -f k8s/prometheus-rbac-service-view.yaml
           kubectl apply -f k8s/prometheus-config.yaml
@@ -131,6 +131,11 @@
       changed_when: false
       failed_when: false
 
+    - name: Wait for cAdvisor rollout
+      ansible.builtin.command: kubectl rollout status daemonset/cadvisor -n perf-lab --timeout=180s
+      changed_when: false
+      failed_when: false
+
     - name: Wait for Prometheus rollout
       ansible.builtin.command: kubectl rollout status deployment/prometheus -n perf-lab --timeout=240s
       changed_when: false
@@ -145,10 +150,11 @@
         method: GET
         status_code: 200
         return_content: false
-      register: k8s_app_check
-      retries: 40
+      register: k8s_app_health
+      retries: 30
       delay: 3
-      until: k8s_app_check.status == 200
+      until: k8s_app_health.status == 200
+      changed_when: false
 
     - name: Wait for Kubernetes API 404 behavior
       ansible.builtin.uri:
@@ -156,10 +162,11 @@
         method: GET
         status_code: 404
         return_content: false
-      register: k8s_app_404_check
+      register: k8s_app_404
       retries: 10
       delay: 3
-      until: k8s_app_404_check.status == 404
+      until: k8s_app_404.status == 404
+      changed_when: false
 
     - name: Wait for Kubernetes Prometheus
       ansible.builtin.uri:
@@ -167,10 +174,11 @@
         method: GET
         status_code: 200
         return_content: false
-      register: k8s_prometheus_check
-      retries: 40
+      register: k8s_prometheus_health
+      retries: 30
       delay: 3
-      until: k8s_prometheus_check.status == 200
+      until: k8s_prometheus_health.status == 200
+      changed_when: false
 
     - name: Wait for Kubernetes Grafana
       ansible.builtin.uri:
@@ -178,10 +186,11 @@
         method: GET
         status_code: 200
         return_content: false
-      register: k8s_grafana_check
-      retries: 40
+      register: k8s_grafana_health
+      retries: 30
       delay: 3
-      until: k8s_grafana_check.status == 200
+      until: k8s_grafana_health.status == 200
+      changed_when: false
 
     - name: Show Kubernetes pods
       ansible.builtin.command: kubectl get pods -n perf-lab -o wide

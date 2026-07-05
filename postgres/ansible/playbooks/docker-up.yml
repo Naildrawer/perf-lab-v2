@@ -14,7 +14,6 @@
         state: stopped
         enabled: false
       failed_when: false
-      changed_when: false
 
     - name: Kill k3s leftovers before Docker mode
       become: true
@@ -38,7 +37,7 @@
       failed_when: false
       changed_when: false
 
-    - name: Start Docker Compose
+    - name: Start Docker Compose with full monitoring stack
       ansible.builtin.command:
         cmd: docker compose up -d --build
         chdir: "{{ project_dir }}"
@@ -52,10 +51,11 @@
         method: GET
         status_code: 200
         return_content: false
-      register: docker_app_check
+      register: docker_app_health
       retries: 40
       delay: 3
-      until: docker_app_check.status == 200
+      until: docker_app_health.status == 200
+      changed_when: false
 
     - name: Wait for Docker API 404 behavior
       ansible.builtin.uri:
@@ -63,10 +63,11 @@
         method: GET
         status_code: 404
         return_content: false
-      register: docker_app_404_check
+      register: docker_app_404
       retries: 10
       delay: 3
-      until: docker_app_404_check.status == 404
+      until: docker_app_404.status == 404
+      changed_when: false
 
     - name: Wait for Docker Prometheus
       ansible.builtin.uri:
@@ -74,10 +75,11 @@
         method: GET
         status_code: 200
         return_content: false
-      register: docker_prometheus_check
+      register: docker_prometheus_health
       retries: 40
       delay: 3
-      until: docker_prometheus_check.status == 200
+      until: docker_prometheus_health.status == 200
+      changed_when: false
 
     - name: Wait for Docker Grafana
       ansible.builtin.uri:
@@ -85,12 +87,40 @@
         method: GET
         status_code: 200
         return_content: false
-      register: docker_grafana_check
+      register: docker_grafana_health
       retries: 40
       delay: 3
-      until: docker_grafana_check.status == 200
+      until: docker_grafana_health.status == 200
+      changed_when: false
+
+    - name: Wait for Docker cAdvisor HTTP metrics endpoint
+      ansible.builtin.uri:
+        url: http://localhost:8081/metrics
+        method: GET
+        status_code: 200
+        return_content: false
+      register: docker_cadvisor_health
+      retries: 30
+      delay: 3
+      until: docker_cadvisor_health.status == 200
+      changed_when: false
+
+    - name: Wait until Prometheus sees cAdvisor target as up
+      ansible.builtin.uri:
+        url: http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22cadvisor%22%7D
+        method: GET
+        status_code: 200
+        return_content: true
+      register: docker_prometheus_cadvisor_query
+      retries: 30
+      delay: 3
+      until:
+        - docker_prometheus_cadvisor_query.json.status == "success"
+        - docker_prometheus_cadvisor_query.json.data.result | length > 0
+        - docker_prometheus_cadvisor_query.json.data.result[0].value[1] == "1"
+      changed_when: false
 
     - name: Show Docker containers
       ansible.builtin.command:
-        cmd: docker ps --format 'table {{'{{'}}.Names{{'}}'}} {{'{{'}}.Status{{'}}'}} {{'{{'}}.Ports{{'}}'}}'
+        cmd: docker ps
       changed_when: false

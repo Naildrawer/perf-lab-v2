@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-providers
+  namespace: perf-lab
+data:
+  dashboard.yml: |-
+    apiVersion: 1
+
+    providers:
+      - name: perf-lab
+        orgID: 1
+        folder: Performance Lab
+        type: file
+        disableDeletion: false
+        editable: true
+        updateIntervalSeconds: 10
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards
+          foldersFromFilesStructure: false
