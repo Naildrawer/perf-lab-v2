@@ -1,26 +1,26 @@
 # Java Performance Demo
 
-Production-like лабораторный стенд для демонстрации навыков Performance Engineering, DevOps/SRE и Observability.
+Production-like лабораторный стенд для демонстрации навыков Performance Engineering, DevOps/SRE, Observability и CI/CD.
 
-Проект показывает, как Java/Spring Boot приложение можно запустить в двух режимах — через Docker Compose и через Kubernetes/k3s — и вокруг него собрать воспроизводимую инфраструктуру наблюдаемости: Prometheus, Grafana, PostgreSQL/Redis exporters, Node Exporter, Nginx и Ansible playbooks.
+Проект показывает полный путь от Spring Boot приложения до воспроизводимого стенда: контейнеризация, Docker Compose, Kubernetes/k3s, Ansible automation, Prometheus, Grafana dashboards, PostgreSQL/Redis exporters, Terraform validation и GitLab CI/CD с публикацией Docker image и manual deploy в локальный k3s.
 
-## Цель проекта
+## Что демонстрирует проект
 
-Цель стенда — не просто запустить Java-приложение, а показать полный инженерный подход:
+Проект сделан не как простой `docker run`, а как полноценный инженерный стенд:
 
-* приложение контейнеризовано через multi-stage Docker build;
-* есть локальный Docker Compose режим для быстрого запуска;
-* есть Kubernetes режим на k3s с manifests, probes, resources и services;
-* инфраструктура запускается через Ansible;
-* метрики собираются Prometheus;
-* Grafana provisioned через файлы, без ручной настройки после старта;
+* Java/Spring Boot приложение собрано через multi-stage Docker build;
+* приложение работает с PostgreSQL и Redis;
+* есть Docker Compose режим для быстрого локального запуска;
+* есть Kubernetes/k3s режим с manifests, probes, resources, PVC и services;
+* запуск и переключение режимов автоматизированы через Ansible;
+* метрики собираются через Prometheus;
+* Grafana datasource и dashboards создаются через provisioning;
 * dashboards разделены под Docker Compose и Kubernetes;
-* добавлен GitLab CI/CD pipeline для validate/build/docker/deploy стадий;
-* PostgreSQL и Redis вынесены как отдельные сервисы;
-* есть exporters для инфраструктурных метрик;
-* конфигурация проекта хранится в репозитории и может быть воспроизведена на новой VM.
+* PostgreSQL, Redis и host metrics собираются через exporters;
+* GitLab CI/CD проверяет Terraform, Ansible, Kubernetes manifests, собирает приложение, публикует Docker image и деплоит в k3s через local runner;
+* проект можно поднять на новой VM из репозитория.
 
-## Архитектура
+## Архитектура Docker Compose режима
 
 ```text
                     ┌────────────────────┐
@@ -66,6 +66,59 @@ Production-like лабораторный стенд для демонстрац�
                    └────────────┘
 ```
 
+В Docker Compose режиме Nginx балансирует запросы между двумя экземплярами Spring Boot приложения. Это позволяет смотреть метрики по отдельным instance и проверять балансировку через endpoint `/instance`.
+
+## Архитектура Kubernetes режима
+
+```text
+                   ┌────────────────────┐
+                   │      Client        │
+                   │ curl / browser     │
+                   └─────────┬──────────┘
+                             │
+                             ▼
+                   ┌────────────────────┐
+                   │ Service app        │
+                   │ NodePort 30080     │
+                   └─────────┬──────────┘
+                             │
+              ┌──────────────┴──────────────┐
+              ▼                             ▼
+       ┌─────────────┐               ┌─────────────┐
+       │ Spring pod  │               │ Spring pod  │
+       └──────┬──────┘               └──────┬──────┘
+              │                             │
+              └──────────────┬──────────────┘
+                             │
+              ┌──────────────┴──────────────┐
+              ▼                             ▼
+       ┌─────────────┐               ┌─────────────┐
+       │ PostgreSQL  │               │    Redis    │
+       │ PVC-backed  │               │ PVC-backed  │
+       └──────┬──────┘               └──────┬──────┘
+              │                             │
+              ▼                             ▼
+   ┌───────────────────┐         ┌───────────────────┐
+   │ postgres-exporter │         │ redis-exporter    │
+   └─────────┬─────────┘         └─────────┬─────────┘
+             │                             │
+             └──────────────┬──────────────┘
+                            ▼
+                    ┌────────────┐
+                    │ Prometheus │
+                    │ NodePort   │
+                    │ 30090      │
+                    └─────┬──────┘
+                          ▼
+                    ┌────────────┐
+                    │ Grafana    │
+                    │ NodePort   │
+                    │ 30030      │
+                    └────────────┘
+```
+
+Kubernetes режим рассчитан на локальный k3s. В нём используются namespace, Deployment, Service, PVC, Secret, ConfigMap, readiness/liveness/startup probes, requests/limits и RBAC для Prometheus.
+
 ## Основные компоненты
 
 ### Spring Boot application
@@ -73,71 +126,160 @@ Production-like лабораторный стенд для демонстрац�
 Приложение предоставляет REST API и Actuator endpoints:
 
 * `/hello` — простой endpoint для проверки приложения;
-* `/instance` — показывает hostname текущего инстанса;
+* `/instance` — hostname текущего instance/pod;
 * `/users` — CRUD API поверх PostgreSQL;
 * `/actuator/health` — health endpoint;
 * `/actuator/prometheus` — метрики для Prometheus.
 
-Приложение запускается в двух экземплярах в Docker Compose режиме и в нескольких pod'ах в Kubernetes режиме. Это позволяет смотреть метрики не только агрегированно, но и по отдельным instance/pod.
+В Docker Compose режиме приложение запускается в двух контейнерах: `spring-app` и `spring-app-2`.
+
+В Kubernetes режиме приложение запускается как `Deployment app` с двумя pod'ами.
 
 ### PostgreSQL
 
-Используется как основная база данных для Spring Boot приложения. В Docker Compose режиме база инициализируется через `postgres/init.sql`.
+PostgreSQL используется как основная база данных приложения.
+
+В Docker Compose режиме база инициализируется через:
+
+```text
+postgres/init.sql
+```
+
+В Kubernetes режиме init SQL хранится в ConfigMap `postgres-init-sql`, а данные PostgreSQL лежат в PVC `postgres-pvc`.
 
 Метрики PostgreSQL собираются через `postgres-exporter`.
 
 ### Redis
 
-Redis используется как отдельный инфраструктурный сервис. Метрики Redis собираются через `redis-exporter`.
+Redis используется как отдельный инфраструктурный сервис. В Kubernetes режиме он также использует PVC.
 
-### Nginx
+Метрики Redis собираются через `redis-exporter`.
 
-В Docker Compose режиме Nginx работает как reverse proxy и простой балансировщик между двумя экземплярами Spring Boot приложения.
+### Node Exporter
 
-Внешняя точка входа в Docker режиме:
-
-```text
-http://localhost:8088
-```
+Node Exporter собирает host-level метрики VM: CPU, memory, filesystem, load average и сетевые показатели хоста.
 
 ### Prometheus
 
 Prometheus собирает метрики приложения и инфраструктуры.
 
-Основные scrape jobs в Docker Compose режиме:
+Основные scrape jobs:
 
-* `spring` — Spring Boot Actuator metrics;
-* `postgres` — PostgreSQL exporter;
-* `redis` — Redis exporter;
-* `node` — host metrics через Node Exporter;
-* `prometheus` — self-monitoring Prometheus.
+```text
+spring
+postgres
+redis
+node
+prometheus
+```
 
-Основные scrape jobs в Kubernetes режиме:
+В Docker Compose режиме Prometheus доступен на:
 
-* `spring` — Spring Boot pod metrics;
-* `postgres` — PostgreSQL exporter;
-* `redis` — Redis exporter;
-* `node` — Node Exporter;
-* `prometheus` — self-monitoring Prometheus.
+```text
+http://localhost:9090
+```
+
+В Kubernetes режиме Prometheus доступен через NodePort:
+
+```text
+http://localhost:30090
+```
 
 ### Grafana
 
 Grafana поднимается с provisioning:
 
 * datasource создаётся автоматически;
-* dashboards загружаются из файлов;
-* ручная настройка после запуска не нужна.
+* dashboard provider создаётся автоматически;
+* dashboards загружаются из JSON-файлов;
+* ручная настройка после старта не требуется.
 
-В проекте два основных dashboard:
+В проекте два dashboard:
 
-* `Java Performance Docker Compose`;
-* `Java Performance Kubernetes`.
+```text
+Java Performance Docker Compose
+Java Performance Kubernetes
+```
+
+Grafana credentials:
+
+```text
+login:    admin
+password: admin
+```
+
+## Kubernetes secrets
+
+В проекте используется два типа secret'ов.
+
+### 1\. `app-secrets`
+
+Secret `app-secrets` описан в Kubernetes manifests и применяется вместе с PostgreSQL manifest:
+
+```bash
+kubectl apply -f k8s/postgres.yaml
+```
+
+Он содержит demo-значения для PostgreSQL, Spring datasource и postgres-exporter:
+
+```text
+POSTGRES\_DB
+POSTGRES\_USER
+POSTGRES\_PASSWORD
+SPRING\_DATASOURCE\_USERNAME
+SPRING\_DATASOURCE\_PASSWORD
+POSTGRES\_EXPORTER\_DATA\_SOURCE\_NAME
+```
+
+PostgreSQL берёт из него переменные:
+
+```text
+POSTGRES\_DB
+POSTGRES\_USER
+POSTGRES\_PASSWORD
+```
+
+Spring Boot приложение берёт из него:
+
+```text
+SPRING\_DATASOURCE\_USERNAME
+SPRING\_DATASOURCE\_PASSWORD
+```
+
+То есть в Kubernetes режиме приложение подключается к PostgreSQL не через hardcoded env в Deployment, а через `secretKeyRef`.
+
+### 2\. `gitlab-registry`
+
+Secret `gitlab-registry` создаётся динамически в GitLab CI/CD на этапе `deploy:k8s`:
+
+```bash
+kubectl -n perf-lab create secret docker-registry gitlab-registry \\
+  --docker-server="$CI\_REGISTRY" \\
+  --docker-username="$REGISTRY\_USERNAME" \\
+  --docker-password="$REGISTRY\_PASSWORD\_VALUE" \\
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+После создания secret pipeline патчит default service account:
+
+```bash
+kubectl -n perf-lab patch serviceaccount default -p '{"imagePullSecrets":\[{"name":"gitlab-registry"}]}' || true
+```
+
+Это нужно, чтобы k3s мог скачивать приватный Docker image приложения из GitLab Container Registry.
+
+В учебном стенде demo-секреты лежат в manifest'ах. Для production-подхода секреты обычно выносят в CI/CD variables, External Secrets, Sealed Secrets, Vault или другой secret management инструмент.
 
 ## Структура проекта
 
 ```text
 .
+├── .gitlab-ci.yml
+├── docker-compose.yml
+├── README.md
+│
 ├── ansible/
+│   ├── ansible.cfg
 │   ├── inventory.ini
 │   └── playbooks/
 │       ├── docker-up.yml
@@ -152,9 +294,6 @@ Grafana поднимается с provisioning:
 │   ├── pom.xml
 │   └── src/
 │
-├── docker-compose.yml
-├── .gitlab-ci.yml
-│
 ├── grafana/
 │   ├── dashboards/
 │   │   ├── java-performance-docker-compose.json
@@ -168,15 +307,17 @@ Grafana поднимается с provisioning:
 │   ├── app.yaml
 │   ├── postgres.yaml
 │   ├── redis.yaml
-│   ├── nginx.yaml
-│   ├── prometheus.yaml
-│   ├── prometheus-config.yaml
-│   ├── prometheus-rbac-service-view.yaml
-│   ├── grafana.yaml
-│   ├── grafana-dashboards.yaml
 │   ├── postgres-exporter.yaml
 │   ├── redis-exporter.yaml
-│   └── node-exporter.yaml
+│   ├── node-exporter.yaml
+│   ├── prometheus-rbac-service-view.yaml
+│   ├── prometheus-config.yaml
+│   ├── prometheus.yaml
+│   ├── grafana-datasources.yaml
+│   ├── grafana-dashboard-providers.yaml
+│   ├── grafana-dashboards.yaml
+│   ├── grafana.yaml
+│   └── ingress.yaml
 │
 ├── nginx/
 │   └── nginx.conf
@@ -189,12 +330,14 @@ Grafana поднимается с provisioning:
 │   ├── prometheus-k8s.yml
 │   └── prometheus-k8s-service-view.yml
 │
-└── README.md
+└── terraform/
+    ├── README.md
+    └── environments/
 ```
 
 ## CI/CD pipeline
 
-В проекте есть GitLab CI/CD pipeline в файле `.gitlab-ci.yml`. Он нужен, чтобы показать не только локальный запуск стенда, но и базовый production-like процесс проверки, сборки, публикации Docker image и деплоя в Kubernetes.
+В проекте настроен GitLab CI/CD pipeline в `.gitlab-ci.yml`.
 
 Pipeline состоит из четырёх стадий:
 
@@ -204,15 +347,19 @@ validate -> build -> docker -> deploy
 
 ### Validate stage
 
-На стадии `validate` выполняются статические проверки инфраструктурной части проекта.
+На стадии `validate` выполняются проверки инфраструктурной части проекта.
 
-`terraform:fmt` проверяет форматирование Terraform-кода:
+#### `terraform:fmt`
+
+Проверяет форматирование Terraform-кода:
 
 ```bash
 terraform fmt -recursive -check terraform/
 ```
 
-`terraform:validate` инициализирует Terraform без backend и проверяет конфигурацию окружения `terraform/environments/yandex`:
+#### `terraform:validate`
+
+Инициализирует Terraform без backend и проверяет конфигурацию окружения:
 
 ```bash
 cd terraform/environments/yandex
@@ -221,9 +368,11 @@ terraform validate
 terraform providers
 ```
 
-Для загрузки providers используется Terraform mirror Yandex Cloud через `.terraformrc`. Это делает pipeline более стабильным для окружения, где прямой доступ к registry может быть ограничен.
+Для загрузки providers используется Terraform mirror Yandex Cloud через `.terraformrc`.
 
-`ansible:syntax` проверяет синтаксис всех основных playbook'ов:
+#### `ansible:syntax`
+
+Проверяет синтаксис Ansible playbook'ов:
 
 ```bash
 ansible-playbook --syntax-check playbooks/docker-up.yml
@@ -234,27 +383,28 @@ ansible-playbook --syntax-check playbooks/install-docker.yml
 ansible-playbook --syntax-check playbooks/install-k3s.yml
 ```
 
-`k8s:manifests:client-dry-run` проверяет Kubernetes manifests через client-side dry-run:
+#### `k8s:manifests:kubeconform`
+
+Проверяет Kubernetes manifests через `kubeconform` без подключения к живому Kubernetes API:
 
 ```bash
-kubectl apply --dry-run=client -f k8s/namespace.yaml
-kubectl apply --dry-run=client -f k8s/app.yaml
-kubectl apply --dry-run=client -f k8s/prometheus.yaml
-kubectl apply --dry-run=client -f k8s/grafana.yaml
+kubeconform -summary -verbose -strict -ignore-missing-schemas -kubernetes-version 1.31.0 k8s/\*.yaml
 ```
 
-В реальном pipeline проверяются все основные manifests: namespace, PostgreSQL, Redis, приложение, exporters, Prometheus, Grafana, dashboards и ingress.
+Это важно для shared GitLab Runner, где нет доступа к локальному k3s API.
 
 ### Build stage
 
-На стадии `build` собирается Spring Boot приложение через Maven:
+#### `spring:build`
+
+Собирает Spring Boot приложение через Maven:
 
 ```bash
 cd app
 mvn -B clean package -DskipTests
 ```
 
-Собранный `.jar` сохраняется как GitLab artifact на одну неделю:
+Собранный `.jar` сохраняется как artifact:
 
 ```text
 app/target/\*.jar
@@ -262,67 +412,90 @@ app/target/\*.jar
 
 ### Docker stage
 
-На стадии `docker` есть две задачи.
+#### `docker:compose:config`
 
-`docker:compose:config` валидирует итоговую Docker Compose конфигурацию:
+Проверяет итоговую Docker Compose конфигурацию:
 
 ```bash
 docker compose -f docker-compose.yml config
 ```
 
-`docker:build:push` собирает Docker image приложения и публикует его в GitLab Container Registry. Image получает два tag'а:
+#### `docker:build:push`
+
+Собирает Docker image приложения и публикует его в GitLab Container Registry:
+
+```bash
+DOCKER\_BUILDKIT=1 docker build -t "$APP\_IMAGE" -t "$APP\_IMAGE\_BRANCH" ./app
+docker push "$APP\_IMAGE"
+docker push "$APP\_IMAGE\_BRANCH"
+```
+
+Image получает два tag'а:
 
 ```text
 $CI\_REGISTRY\_IMAGE/app:$CI\_COMMIT\_SHORT\_SHA
 $CI\_REGISTRY\_IMAGE/app:$CI\_COMMIT\_REF\_SLUG
 ```
 
-Это позволяет использовать как immutable tag на конкретный commit, так и branch tag для текущей ветки.
+Первый tag привязан к конкретному commit'у, второй — к ветке.
 
 ### Deploy stage
 
-Стадия `deploy` рассчитана на локальный GitLab Runner с tag'ом:
+#### `deploy:k8s`
+
+Deploy выполняется на локальном GitLab Runner с tag'ом:
 
 ```text
 local-deploy
 ```
 
-Job `deploy:k8s` использует kubeconfig раннера:
+Job использует kubeconfig раннера:
 
 ```bash
 export KUBECONFIG=/home/gitlab-runner/.kube/config
 ```
 
-Дальше pipeline:
+Перед deploy job проверяет доступность local k3s API. Если API недоступен, pipeline пытается запустить k3s через systemd:
+
+```bash
+sudo -n systemctl start k3s
+```
+
+Для этого на VM должен быть разрешён passwordless sudo для пользователя `gitlab-runner` на команду запуска k3s.
+
+Дальше job:
 
 * применяет namespace `perf-lab`;
-* создаёт/обновляет `docker-registry` secret для GitLab Registry;
+* создаёт/обновляет Docker registry secret `gitlab-registry`;
 * добавляет `imagePullSecrets` в default service account;
-* применяет manifests PostgreSQL, Redis и приложения;
+* применяет manifests PostgreSQL, Redis, приложения, exporters, Prometheus и Grafana;
 * обновляет image deployment'а `app` на image текущего commit'а;
-* ждёт rollout deployment'а;
-* выводит pod'ы приложения.
+* пересоздаёт ConfigMap `grafana-dashboards` из dashboard JSON-файлов;
+* делает rollout restart Grafana;
+* ждёт rollout основных deployment'ов;
+* выводит состояние pod'ов и services.
 
-Деплой сделан manual и запускается только для ветки:
+Dashboard ConfigMap в CI создаётся через `kubectl create configmap --from-file`, а не через `kubectl apply -f k8s/grafana-dashboards.yaml`. Это сделано потому, что dashboard JSON-файлы большие, и `kubectl apply` может упереться в лимит размера annotations.
+
+Deploy сделан ручным и запускается только для ветки:
 
 ```text
 perf-lab-dev
 ```
 
-Это безопаснее для учебного стенда: validate/build/docker могут выполняться автоматически, а фактический deploy в локальный k3s выполняется вручную, когда VM и runner готовы.
+Правило запуска:
 
-### Что демонстрирует CI/CD часть
+```yaml
+rules:
+  - if: '$CI\_COMMIT\_BRANCH == "perf-lab-dev"'
+    when: manual
+```
 
-CI/CD часть показывает, что проект можно не только поднять вручную, но и прогнать через базовый инженерный pipeline:
+Для защиты от параллельных деплоев используется:
 
-* проверить Terraform formatting и validate;
-* проверить Ansible playbooks;
-* проверить Kubernetes manifests до применения;
-* собрать Spring Boot приложение;
-* собрать и запушить Docker image;
-* выполнить ручной deploy в Kubernetes через GitLab Runner;
-* обновить deployment на image конкретного commit'а;
-* дождаться rollout и проверить состояние pod'ов.
+```yaml
+resource\_group: local-k3s
+```
 
 ## Режимы запуска
 
@@ -331,7 +504,7 @@ CI/CD часть показывает, что проект можно не то�
 1. Docker Compose mode — быстрый локальный стенд.
 2. Kubernetes mode — production-like запуск через k3s.
 
-На одной VM лучше не держать оба режима одновременно. Перед запуском Docker режима playbook останавливает k3s. Перед запуском Kubernetes режима playbook останавливает Docker Compose контейнеры.
+На одной небольшой VM лучше не держать оба режима одновременно. Перед запуском Docker режима playbook останавливает k3s. Перед запуском Kubernetes режима playbook останавливает Docker Compose контейнеры.
 
 ## Docker Compose mode
 
@@ -347,7 +520,7 @@ Playbook делает следующее:
 * останавливает k3s перед Docker mode;
 * останавливает старые Docker Compose контейнеры;
 * собирает Spring Boot image;
-* поднимает весь Docker Compose стек;
+* поднимает Docker Compose стек;
 * проверяет health endpoint приложения;
 * проверяет корректный `404` для несуществующего пользователя;
 * проверяет готовность Prometheus;
@@ -373,13 +546,6 @@ Postgres Exporter:      http://localhost:9187/metrics
 Redis Exporter:         http://localhost:9121/metrics
 ```
 
-Grafana credentials:
-
-```text
-login:    admin
-password: admin
-```
-
 ### Быстрые проверки Docker режима
 
 ```bash
@@ -401,18 +567,9 @@ curl -s 'http://localhost:9090/api/v1/query?query=up' | python3 -m json.tool
 curl -s -u admin:admin http://localhost:3000/api/search?type=dash-db | python3 -m json.tool
 ```
 
-Ожидаемые dashboards:
-
-```text
-Java Performance Docker Compose
-Java Performance Kubernetes
-```
-
 ## Kubernetes mode
 
-Kubernetes режим рассчитан на локальный k3s.
-
-### Запуск
+### Запуск через Ansible
 
 ```bash
 cd \~/training/java-performance-demo/ansible
@@ -432,6 +589,23 @@ Playbook делает следующее:
 * проверяет Grafana;
 * проверяет наличие нужных Prometheus targets.
 
+### Deploy через GitLab CI/CD
+
+Для deploy через pipeline используется manual job `deploy:k8s`.
+
+Он запускается на local runner `ubuntu123` с tag'ом `local-deploy`, собирает image в GitLab Container Registry, создаёт registry secret в Kubernetes и обновляет deployment `app` на image текущего commit'а.
+
+Успешный deploy заканчивается выводом:
+
+```text
+deployment "app" successfully rolled out
+deployment "postgres" successfully rolled out
+deployment "redis" successfully rolled out
+deployment "prometheus" successfully rolled out
+deployment "grafana" successfully rolled out
+Job succeeded
+```
+
 ### Остановка
 
 ```bash
@@ -442,16 +616,9 @@ sudo ansible-playbook playbooks/k8s-down.yml
 ### URL в Kubernetes режиме
 
 ```text
-Application via Nginx NodePort: http://localhost:30080
-Prometheus NodePort:            http://localhost:30090
-Grafana NodePort:               http://localhost:30030
-```
-
-Grafana credentials:
-
-```text
-login:    admin
-password: admin
+Application NodePort: http://localhost:30080
+Prometheus NodePort: http://localhost:30090
+Grafana NodePort:    http://localhost:30030
 ```
 
 ### Быстрые проверки Kubernetes режима
@@ -517,7 +684,7 @@ Dashboard для Kubernetes режима показывает:
 * total requests;
 * JVM heap/non-heap memory по pod;
 * heap usage percent;
-* threads;
+* live/peak threads;
 * GC pause time;
 * process CPU;
 * process memory;
@@ -580,11 +747,34 @@ for i in {1..10}; do curl -s http://localhost:8088/instance; echo; done
 curl -i http://localhost:8088/users/999999999
 ```
 
+## Работа с PostgreSQL
+
+Docker Compose mode:
+
+```bash
+docker exec -it postgres psql -U app -d app
+```
+
+Kubernetes mode:
+
+```bash
+kubectl exec -it -n perf-lab deploy/postgres -- psql -U app -d app
+```
+
+Полезные команды внутри `psql`:
+
+```sql
+\\dt
+SELECT \* FROM users;
+\\d users
+\\q
+```
+
 ## Типовые проблемы и диагностика
 
 ### Grafana показывает старые dashboards
 
-Grafana хранит импортированные dashboards во внутренней базе на volume. Если dashboard-файлы заменены, но UI показывает старые версии, можно пересоздать только Grafana volume.
+Grafana хранит импортированные dashboards во внутренней базе на volume/PVC. Если dashboard-файлы заменены, но UI показывает старые версии, можно пересоздать только хранилище Grafana.
 
 Docker mode:
 
@@ -601,9 +791,35 @@ Kubernetes mode:
 kubectl scale deployment/grafana -n perf-lab --replicas=0
 kubectl delete pvc grafana-pvc -n perf-lab --ignore-not-found=true
 kubectl apply -f k8s/grafana.yaml
-kubectl apply -f k8s/grafana-dashboards.yaml
 kubectl scale deployment/grafana -n perf-lab --replicas=1
 kubectl rollout status deployment/grafana -n perf-lab --timeout=180s
+```
+
+### GitLab deploy не может скачать image
+
+Проверить registry secret:
+
+```bash
+kubectl get secret gitlab-registry -n perf-lab
+kubectl get serviceaccount default -n perf-lab -o yaml | grep -A5 imagePullSecrets
+```
+
+Если secret отсутствует, перезапустить manual job `deploy:k8s` или создать secret вручную.
+
+### GitLab deploy не видит k3s API
+
+Проверить k3s на VM:
+
+```bash
+sudo systemctl status k3s
+sudo systemctl start k3s
+kubectl get nodes
+```
+
+Проверить от пользователя `gitlab-runner`:
+
+```bash
+sudo -u gitlab-runner KUBECONFIG=/home/gitlab-runner/.kube/config kubectl get nodes
 ```
 
 ### Prometheus не видит приложение
@@ -628,7 +844,7 @@ curl -s 'http://localhost:30090/api/v1/query?query=up%7Bjob%3D%22spring%22%7D' |
 
 ### Ansible зависает на rollout
 
-Проверить pod'ы:
+Проверить pod'ы и events:
 
 ```bash
 kubectl get pods -n perf-lab -o wide
@@ -636,20 +852,16 @@ kubectl describe pod -n perf-lab <pod-name>
 kubectl logs -n perf-lab <pod-name> --tail=100
 ```
 
-Если проблема с Prometheus/Grafana и PVC, проверить, что deployment использует стратегию `Recreate`, чтобы два pod'а не пытались одновременно использовать один volume.
-
 ### Docker команды зависают
 
-На маленькой VM не стоит одновременно держать Docker Compose и k3s. Переключай режимы через playbooks.
-
-Для Docker mode:
+На маленькой VM не стоит одновременно держать Docker Compose и k3s. Переключай режимы через playbooks:
 
 ```bash
 cd \~/training/java-performance-demo/ansible
 sudo ansible-playbook playbooks/docker-up.yml
 ```
 
-Для Kubernetes mode:
+или:
 
 ```bash
 cd \~/training/java-performance-demo/ansible
@@ -660,26 +872,28 @@ sudo ansible-playbook playbooks/k8s-up.yml
 
 Проект демонстрирует практические навыки:
 
+* Java/Spring Boot;
+* REST API;
+* Spring Boot Actuator;
 * Docker и Docker Compose;
 * multi-stage Docker build;
+* Nginx reverse proxy;
+* PostgreSQL и Redis;
 * Kubernetes manifests;
 * k3s;
+* Kubernetes Secret, ConfigMap, PVC, Service, Deployment;
+* readiness/liveness/startup probes;
+* resource requests/limits;
 * Ansible automation;
 * Prometheus scraping;
 * Grafana provisioning;
-* JVM metrics;
-* Spring Boot Actuator;
-* PostgreSQL и Redis exporters;
-* Node Exporter;
+* PostgreSQL/Redis/Node exporters;
 * GitLab CI/CD pipeline;
 * Terraform fmt/validate;
-* Docker image build/push в Container Registry;
+* Docker image build/push в GitLab Container Registry;
 * manual deploy в Kubernetes через локальный GitLab Runner;
-* reverse proxy через Nginx;
-* health checks;
-* readiness/liveness probes;
-* resources requests/limits;
+* imagePullSecrets для приватного registry;
+* rollout status и basic deployment verification;
 * troubleshooting observability stack;
-* разделение Docker и Kubernetes режимов;
 * воспроизводимость стенда из репозитория.
 
