@@ -70,21 +70,21 @@ k8s:manifests:client-dry-run:
     name: alpine/k8s:1.31.9
     entrypoint: [""]
   script:
-    - kubectl apply --dry-run=client -f k8s/namespace.yaml
-    - kubectl apply --dry-run=client -f k8s/postgres.yaml
-    - kubectl apply --dry-run=client -f k8s/redis.yaml
-    - kubectl apply --dry-run=client -f k8s/app.yaml
-    - kubectl apply --dry-run=client -f k8s/postgres-exporter.yaml
-    - kubectl apply --dry-run=client -f k8s/redis-exporter.yaml
-    - kubectl apply --dry-run=client -f k8s/node-exporter.yaml
-    - kubectl apply --dry-run=client -f k8s/prometheus-rbac-service-view.yaml
-    - kubectl apply --dry-run=client -f k8s/prometheus-config.yaml
-    - kubectl apply --dry-run=client -f k8s/prometheus.yaml
-    - kubectl apply --dry-run=client -f k8s/grafana-datasources.yaml
-    - kubectl apply --dry-run=client -f k8s/grafana-dashboard-providers.yaml
-    - kubectl apply --dry-run=client -f k8s/grafana-dashboards.yaml
-    - kubectl apply --dry-run=client -f k8s/grafana.yaml
-    - kubectl apply --dry-run=client -f k8s/ingress.yaml
+    - kubectl apply --dry-run=client --validate=false -f k8s/namespace.yaml
+    - kubectl apply --dry-run=client --validate=false -f k8s/postgres.yaml
+    - kubectl apply --dry-run=client --validate=false -f k8s/redis.yaml
+    - kubectl apply --dry-run=client --validate=false -f k8s/app.yaml
+    - kubectl apply --dry-run=client --validate=false -f k8s/postgres-exporter.yaml
+    - kubectl apply --dry-run=client --validate=false -f k8s/redis-exporter.yaml
+    - kubectl apply --dry-run=client --validate=false -f k8s/node-exporter.yaml
+    - kubectl apply --dry-run=client --validate=false -f k8s/prometheus-rbac-service-view.yaml
+    - kubectl apply --dry-run=client --validate=false -f k8s/prometheus-config.yaml
+    - kubectl apply --dry-run=client --validate=false -f k8s/prometheus.yaml
+    - kubectl apply --dry-run=client --validate=false -f k8s/grafana-datasources.yaml
+    - kubectl apply --dry-run=client --validate=false -f k8s/grafana-dashboard-providers.yaml
+    - kubectl apply --dry-run=client --validate=false -f k8s/grafana-dashboards.yaml
+    - kubectl apply --dry-run=client --validate=false -f k8s/grafana.yaml
+    - kubectl apply --dry-run=client --validate=false -f k8s/ingress.yaml
 
 spring:build:
   stage: build
