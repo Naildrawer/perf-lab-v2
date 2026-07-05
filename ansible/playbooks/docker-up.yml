@@ -7,13 +7,30 @@
     project_dir: "{{ playbook_dir }}/../.."
 
   tasks:
-    - name: Stop k3s service
+    - name: Stop k3s service before Docker mode
       ansible.builtin.command: sudo -n systemctl stop k3s
       failed_when: false
       changed_when: false
 
-    - name: Kill k3s leftovers
+    - name: Kill k3s leftovers before Docker mode
       ansible.builtin.command: sudo -n /usr/local/bin/k3s-killall.sh
+      failed_when: false
+      changed_when: false
+
+    - name: Wait until k3s is inactive
+      ansible.builtin.command: systemctl is-active k3s
+      register: k3s_status
+      retries: 20
+      delay: 3
+      until: k3s_status.stdout != "active" and k3s_status.stdout != "deactivating"
+      failed_when: false
+      changed_when: false
+
+
+    - name: Stop old Docker Compose containers before clean Docker mode
+      ansible.builtin.command:
+        cmd: docker compose down --remove-orphans
+        chdir: "{{ project_dir }}"
       failed_when: false
       changed_when: false
 
@@ -21,36 +38,47 @@
       ansible.builtin.command:
         cmd: docker compose up -d --build
         chdir: "{{ project_dir }}"
+      environment:
+        DOCKER_BUILDKIT: "1"
       changed_when: true
 
-    - name: Check Docker containers
+    - name: Wait for Docker application health endpoint
       ansible.builtin.command:
-        cmd: docker ps
-      changed_when: false
-
-    - name: Wait for Docker application endpoint
-      ansible.builtin.command:
-        cmd: curl -s -o /tmp/docker_app_check.out -w "%{http_code}" http://localhost/users
+        cmd: curl -s -o /tmp/docker_app_check.out -w "%{http_code}" http://localhost:8088/actuator/health
       register: docker_app_check
-      retries: 20
+      retries: 30
       delay: 3
       until: docker_app_check.stdout == "200"
+      changed_when: false
+
+    - name: Wait for Docker API 404 behavior
+      ansible.builtin.command:
+        cmd: curl -s -o /tmp/docker_app_404_check.out -w "%{http_code}" http://localhost:8088/users/999999999
+      register: docker_app_404_check
+      retries: 10
+      delay: 3
+      until: docker_app_404_check.stdout == "404"
       changed_when: false
 
     - name: Wait for Docker Prometheus
       ansible.builtin.command:
         cmd: curl -s -o /tmp/docker_prometheus_check.out -w "%{http_code}" http://localhost:9090/-/ready
       register: docker_prometheus_check
-      retries: 20
+      retries: 30
       delay: 3
       until: docker_prometheus_check.stdout == "200"
       changed_when: false
 
-    - name: Check Docker Grafana
+    - name: Wait for Docker Grafana
       ansible.builtin.command:
-        cmd: curl -s -o /tmp/docker_grafana_check.out -w "%{http_code}" http://localhost:3000
+        cmd: curl -s -o /tmp/docker_grafana_check.out -w "%{http_code}" http://localhost:3000/api/health
       register: docker_grafana_check
-      retries: 20
+      retries: 30
       delay: 3
-      until: docker_grafana_check.stdout in ["200", "302"]
+      until: docker_grafana_check.stdout == "200"
+      changed_when: false
+
+    - name: Show Docker containers
+      ansible.builtin.command:
+        cmd: docker ps
       changed_when: false

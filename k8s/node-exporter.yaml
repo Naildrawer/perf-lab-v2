@@ -1,63 +1,68 @@
 apiVersion: apps/v1
 kind: DaemonSet
-
 metadata:
   name: node-exporter
   namespace: perf-lab
-
 spec:
   selector:
     matchLabels:
       app: node-exporter
-
   template:
     metadata:
       labels:
         app: node-exporter
-
     spec:
-      hostNetwork: true
-      hostPID: true
-
       containers:
         - name: node-exporter
-
-          image: prom/node-exporter:latest
-
+          image: prom/node-exporter:v1.8.2
+          imagePullPolicy: IfNotPresent
           args:
-            - --path.rootfs=/host
-            - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/containerd/.+)($|/)
-            - --collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$
-
+            - --path.procfs=/host/proc
+            - --path.sysfs=/host/sys
+            - --path.rootfs=/rootfs
+            - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/containerd/.+|var/lib/kubelet/.+)($|/)
           ports:
-            - containerPort: 9100
-              hostPort: 9100
-
+            - name: metrics
+              containerPort: 9100
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
           volumeMounts:
-            - name: root
-              mountPath: /host
+            - name: proc
+              mountPath: /host/proc
               readOnly: true
-
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+            - name: rootfs
+              mountPath: /rootfs
+              readOnly: true
       volumes:
-        - name: root
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: rootfs
           hostPath:
             path: /
 
 ---
-
 apiVersion: v1
 kind: Service
-
 metadata:
   name: node-exporter
   namespace: perf-lab
-
 spec:
+  type: ClusterIP
   selector:
     app: node-exporter
-
   ports:
-    - port: 9100
+    - name: metrics
+      port: 9100
       targetPort: 9100
-
-  type: ClusterIP

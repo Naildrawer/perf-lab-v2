@@ -1,15 +1,12 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
-
 metadata:
   name: app-ingress
   namespace: perf-lab
-
 spec:
   rules:
     - http:
         paths:
-
           - path: /
             pathType: Prefix
             backend:
@@ -17,11 +14,3 @@ spec:
                 name: app
                 port:
                   number: 8080
-
-          - path: /prometheus
-            pathType: Prefix
-            backend:
-              service:
-                name: prometheus
-                port:
-                  number: 9090

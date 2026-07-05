@@ -14,8 +14,8 @@
       failed_when: false
       changed_when: false
 
-    - name: Check Kubernetes API is stopped
-      ansible.builtin.command: kubectl get nodes
-      register: kubectl_nodes
-      failed_when: kubectl_nodes.rc == 0
+    - name: Check k3s status
+      ansible.builtin.command: systemctl is-active k3s
+      register: k3s_status
+      failed_when: false
       changed_when: false

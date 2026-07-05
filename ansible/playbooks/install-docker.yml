@@ -12,6 +12,11 @@
       ansible.builtin.command: sudo -n apt install -y docker.io docker-compose-plugin curl ca-certificates
       changed_when: true
 
+    - name: Try to install Docker Buildx plugin
+      ansible.builtin.command: sudo -n apt install -y docker-buildx-plugin
+      failed_when: false
+      changed_when: true
+
     - name: Enable Docker service
       ansible.builtin.command: sudo -n systemctl enable --now docker
       changed_when: true
@@ -22,4 +27,9 @@
 
     - name: Check Docker Compose version
       ansible.builtin.command: docker compose version
+      changed_when: false
+
+    - name: Check Docker Buildx version
+      ansible.builtin.command: docker buildx version
+      failed_when: false
       changed_when: false

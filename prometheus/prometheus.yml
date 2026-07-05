@@ -2,36 +2,31 @@ global:
   scrape_interval: 5s
 
 scrape_configs:
-
   - job_name: spring
-
     metrics_path: /actuator/prometheus
-
     static_configs:
       - targets:
           - app:8080
           - app2:8080
 
   - job_name: postgres
-
     static_configs:
       - targets:
           - postgres-exporter:9187
 
   - job_name: redis
-
     static_configs:
       - targets:
           - redis-exporter:9121
 
-  - job_name: cadvisor
-
-    static_configs:
-      - targets:
-          - cadvisor:8080
-
   - job_name: node
-
     static_configs:
       - targets:
           - node-exporter:9100
+
+  # cAdvisor is optional and is started only with:
+  # docker compose --profile heavy-monitoring up -d
+  - job_name: cadvisor
+    static_configs:
+      - targets:
+          - cadvisor:8080

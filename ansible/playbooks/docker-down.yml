@@ -14,7 +14,7 @@
       failed_when: false
       changed_when: true
 
-    - name: Check Docker containers
+    - name: Show remaining Docker containers
       ansible.builtin.command:
         cmd: docker ps
       changed_when: false

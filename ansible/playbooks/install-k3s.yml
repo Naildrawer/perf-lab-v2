@@ -21,11 +21,11 @@
     - name: Wait for Kubernetes API
       ansible.builtin.command: kubectl get nodes
       register: kubectl_nodes
-      retries: 30
+      retries: 40
       delay: 3
       until: kubectl_nodes.rc == 0
       changed_when: false
 
     - name: Check Kubernetes nodes
-      ansible.builtin.command: kubectl get nodes
+      ansible.builtin.command: kubectl get nodes -o wide
       changed_when: false

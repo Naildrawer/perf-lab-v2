@@ -1,4 +1,46 @@
 apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: perf-lab
+type: Opaque
+stringData:
+  POSTGRES_DB: app
+  POSTGRES_USER: app
+  POSTGRES_PASSWORD: app
+  SPRING_DATASOURCE_USERNAME: app
+  SPRING_DATASOURCE_PASSWORD: app
+  POSTGRES_EXPORTER_DATA_SOURCE_NAME: postgresql://app:app@postgres:5432/app?sslmode=disable
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-sql
+  namespace: perf-lab
+data:
+  init.sql: |-
+    CREATE TABLE IF NOT EXISTS users
+    (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100),
+        email VARCHAR(100)
+    );
+
+    INSERT INTO users(name, email)
+    SELECT 'Max', 'max@mail.ru'
+    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'max@mail.ru');
+
+    INSERT INTO users(name, email)
+    SELECT 'Ivan', 'ivan@mail.ru'
+    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'ivan@mail.ru');
+
+    INSERT INTO users(name, email)
+    SELECT 'Alex', 'alex@mail.ru'
+    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'alex@mail.ru');
+
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgres-pvc
@@ -16,61 +58,98 @@ kind: Deployment
 metadata:
   name: postgres
   namespace: perf-lab
-
 spec:
   replicas: 1
-
   selector:
     matchLabels:
       app: postgres
-
   template:
     metadata:
       labels:
         app: postgres
-
     spec:
       containers:
         - name: postgres
-          image: postgres:16
-
+          image: postgres:16.4
+          imagePullPolicy: IfNotPresent
           env:
             - name: POSTGRES_DB
-              value: app
-
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: POSTGRES_DB
             - name: POSTGRES_USER
-              value: app
-
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
-              value: app
-
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: POSTGRES_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           ports:
-            - containerPort: 5432
-
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - app
+                - -d
+                - app
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - app
+                - -d
+                - app
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
           volumeMounts:
-            - mountPath: /var/lib/postgresql/data
-              name: postgres-storage
-
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+            - name: postgres-init-sql
+              mountPath: /docker-entrypoint-initdb.d/init.sql
+              subPath: init.sql
+              readOnly: true
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
             claimName: postgres-pvc
+        - name: postgres-init-sql
+          configMap:
+            name: postgres-init-sql
 
 ---
 apiVersion: v1
 kind: Service
-
 metadata:
   name: postgres
   namespace: perf-lab
-
 spec:
+  type: ClusterIP
   selector:
     app: postgres
-
   ports:
-    - port: 5432
+    - name: postgres
+      port: 5432
       targetPort: 5432
-
-  type: ClusterIP
-

@@ -8,6 +8,7 @@ services:
       POSTGRES_DB: app
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
     volumes:
@@ -58,6 +59,13 @@ services:
     depends_on:
       - postgres
       - redis
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/app
+      SPRING_DATASOURCE_USERNAME: app
+      SPRING_DATASOURCE_PASSWORD: app
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: "6379"
+      SPRING_CACHE_TYPE: none
     restart: unless-stopped
 
   app2:
@@ -67,6 +75,13 @@ services:
     depends_on:
       - postgres
       - redis
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/app
+      SPRING_DATASOURCE_USERNAME: app
+      SPRING_DATASOURCE_PASSWORD: app
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: "6379"
+      SPRING_CACHE_TYPE: none
     restart: unless-stopped
 
   nginx:
@@ -97,11 +112,16 @@ services:
     depends_on:
       - app
       - app2
+      - postgres-exporter
+      - redis-exporter
+      - node-exporter
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: cadvisor
     restart: unless-stopped
+    profiles:
+      - heavy-monitoring
     ports:
       - "8081:8080"
     privileged: true
@@ -135,6 +155,7 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_DEFAULT_THEME: dark
     depends_on:
       - prometheus
     ports:

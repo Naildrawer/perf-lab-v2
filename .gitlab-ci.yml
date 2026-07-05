@@ -10,7 +10,6 @@ variables:
   APP_IMAGE: "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_SHORT_SHA"
   APP_IMAGE_BRANCH: "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_REF_SLUG"
 
-
 cache:
   key: "$CI_COMMIT_REF_SLUG"
   paths:
@@ -51,7 +50,6 @@ terraform:validate:
     - terraform validate
     - terraform providers
 
-
 ansible:syntax:
   stage: validate
   image: python:3.12-slim
@@ -66,17 +64,46 @@ ansible:syntax:
     - ansible-playbook --syntax-check playbooks/install-docker.yml
     - ansible-playbook --syntax-check playbooks/install-k3s.yml
 
+k8s:manifests:client-dry-run:
+  stage: validate
+  image:
+    name: bitnami/kubectl:1.31
+    entrypoint: [""]
+  script:
+    - kubectl apply --dry-run=client -f k8s/namespace.yaml
+    - kubectl apply --dry-run=client -f k8s/postgres.yaml
+    - kubectl apply --dry-run=client -f k8s/redis.yaml
+    - kubectl apply --dry-run=client -f k8s/app.yaml
+    - kubectl apply --dry-run=client -f k8s/postgres-exporter.yaml
+    - kubectl apply --dry-run=client -f k8s/redis-exporter.yaml
+    - kubectl apply --dry-run=client -f k8s/node-exporter.yaml
+    - kubectl apply --dry-run=client -f k8s/prometheus-rbac-service-view.yaml
+    - kubectl apply --dry-run=client -f k8s/prometheus-config.yaml
+    - kubectl apply --dry-run=client -f k8s/prometheus.yaml
+    - kubectl apply --dry-run=client -f k8s/grafana-datasources.yaml
+    - kubectl apply --dry-run=client -f k8s/grafana-dashboard-providers.yaml
+    - kubectl apply --dry-run=client -f k8s/grafana-dashboards.yaml
+    - kubectl apply --dry-run=client -f k8s/grafana.yaml
+    - kubectl apply --dry-run=client -f k8s/ingress.yaml
+
 spring:build:
   stage: build
   image: maven:3.9.9-eclipse-temurin-17
   script:
     - cd app
-    - mvn clean package -DskipTests
+    - mvn -B clean package -DskipTests
   artifacts:
     paths:
       - app/target/*.jar
     expire_in: 1 week
 
+docker:compose:config:
+  stage: docker
+  image: docker:27
+  services:
+    - docker:27-dind
+  script:
+    - docker compose -f docker-compose.yml config
 
 docker:build:push:
   stage: docker
@@ -88,17 +115,9 @@ docker:build:push:
   script:
     - docker version
     - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
-    - docker build -t "$APP_IMAGE" -t "$APP_IMAGE_BRANCH" ./app
+    - DOCKER_BUILDKIT=1 docker build -t "$APP_IMAGE" -t "$APP_IMAGE_BRANCH" ./app
     - docker push "$APP_IMAGE"
     - docker push "$APP_IMAGE_BRANCH"
-
-docker:compose:config:
-  stage: docker
-  image: docker:27
-  services:
-    - docker:27-dind
-  script:
-    - docker compose -f docker-compose.yml config
 
 deploy:k8s:
   stage: deploy
@@ -108,14 +127,13 @@ deploy:k8s:
     - docker:build:push
   script:
     - export KUBECONFIG=/home/gitlab-runner/.kube/config
-    - kubectl -n perf-lab get deployment/app
+    - kubectl apply -f k8s/namespace.yaml
     - |
-      kubectl -n perf-lab create secret docker-registry gitlab-registry \
-        --docker-server="$CI_REGISTRY" \
-        --docker-username="$REGISTRY_DEPLOY_USER" \
-        --docker-password="$REGISTRY_DEPLOY_PASSWORD" \
-        --dry-run=client -o yaml | kubectl apply -f -
+      kubectl -n perf-lab create secret docker-registry gitlab-registry         --docker-server="$CI_REGISTRY"         --docker-username="$REGISTRY_DEPLOY_USER"         --docker-password="$REGISTRY_DEPLOY_PASSWORD"         --dry-run=client -o yaml | kubectl apply -f -
     - kubectl -n perf-lab patch serviceaccount default -p '{"imagePullSecrets":[{"name":"gitlab-registry"}]}' || true
+    - kubectl apply -f k8s/postgres.yaml
+    - kubectl apply -f k8s/redis.yaml
+    - kubectl apply -f k8s/app.yaml
     - kubectl -n perf-lab set image deployment/app app="$APP_IMAGE"
     - kubectl -n perf-lab rollout status deployment/app --timeout=180s
     - kubectl -n perf-lab get pods -l app=spring -o wide
