@@ -98,6 +98,106 @@ docker:compose:config:
     - docker version
     - docker compose -f docker-compose.yml config
 
+stages:
+  - validate
+  - build
+  - docker
+  - deploy
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_HOST: "tcp://docker:2375"
+  DOCKER_DRIVER: "overlay2"
+  APP_IMAGE: "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_SHORT_SHA"
+  APP_IMAGE_BRANCH: "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_REF_SLUG"
+
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  paths:
+    - app/.m2/repository
+
+terraform:fmt:
+  stage: validate
+  image:
+    name: hashicorp/terraform:1.9.8
+    entrypoint: [""]
+  script:
+    - terraform version
+    - terraform fmt -recursive -check terraform/
+
+terraform:validate:
+  stage: validate
+  image:
+    name: hashicorp/terraform:1.9.8
+    entrypoint: [""]
+  script:
+    - terraform version
+    - |
+      cat > ~/.terraformrc <<'EOF'
+      provider_installation {
+        network_mirror {
+          url     = "https://terraform-mirror.yandexcloud.net/"
+          include = ["registry.terraform.io/*/*"]
+        }
+
+        direct {
+          exclude = ["registry.terraform.io/*/*"]
+        }
+      }
+      EOF
+    - cd terraform/environments/yandex
+    - rm -rf .terraform .terraform.lock.hcl
+    - terraform init -backend=false -upgrade
+    - terraform validate
+    - terraform providers
+
+ansible:syntax:
+  stage: validate
+  image: python:3.12-slim
+  before_script:
+    - pip install --no-cache-dir ansible
+  script:
+    - cd ansible
+    - ansible-playbook --syntax-check playbooks/docker-up.yml
+    - ansible-playbook --syntax-check playbooks/docker-down.yml
+    - ansible-playbook --syntax-check playbooks/k8s-up.yml
+    - ansible-playbook --syntax-check playbooks/k8s-down.yml
+    - ansible-playbook --syntax-check playbooks/install-docker.yml
+    - ansible-playbook --syntax-check playbooks/install-k3s.yml
+
+k8s:manifests:kubeconform:
+  stage: validate
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache curl tar
+    - curl -L https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+    - mv kubeconform /usr/local/bin/
+    - kubeconform -v
+  script:
+    - kubeconform -summary -verbose -strict -ignore-missing-schemas -kubernetes-version 1.31.0 k8s/*.yaml
+
+spring:build:
+  stage: build
+  image: maven:3.9.9-eclipse-temurin-17
+  script:
+    - cd app
+    - mvn -B clean package -DskipTests
+  artifacts:
+    paths:
+      - app/target/*.jar
+    expire_in: 1 week
+
+docker:compose:config:
+  stage: docker
+  image: docker:27
+  services:
+    - name: docker:27-dind
+      command: ["--tls=false"]
+  script:
+    - docker version
+    - docker compose -f docker-compose.yml config
+
 docker:build:push:
   stage: docker
   image: docker:27
